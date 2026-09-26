@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://remember-me.app/spec/v0/manifest.schema.json",
+  "title": "Remember Me — manifest.json",
+  "description": "Racine d'un recueil (.rmbr) ou d'un pack de contribution (.rmbrc).",
+  "type": "object",
+  "required": ["format", "formatVersion", "kind", "id", "createdAt", "updatedAt", "authors", "entries"],
+  "additionalProperties": false,
+  "properties": {
+    "format": {
+      "const": "remember-me",
+      "description": "Signature du format, permet de reconnaître le fichier sans se fier à l'extension."
+    },
+    "formatVersion": {
+      "type": "string",
+      "pattern": "^0\\.[0-9]+$",
+      "description": "Version de la spec (majeure.mineure). v0 = instable."
+    },
+    "kind": {
+      "enum": ["recueil", "contribution"],
+      "description": "recueil = fichier .rmbr ; contribution = pack .rmbrc."
+    },
+    "id": {
+      "$ref": "#/$defs/uuid",
+      "description": "ID du recueil (kind=recueil) ou du pack (kind=contribution)."
+    },
+    "recueilId": {
+      "$ref": "#/$defs/uuid",
+      "description": "Recueil ciblé par le pack. Obligatoire si kind=contribution, interdit sinon."
+    },
+    "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "subject": {
+      "type": "object",
+      "description": "Personne dont parle le recueil (peut différer du créateur, mode « je crée pour quelqu'un »).",
+      "required": ["name"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "birthDate": { "$ref": "entry.schema.json#/$defs/partialDate" },
+        "coverMedia": { "$ref": "entry.schema.json#/$defs/mediaPath" }
+      }
+    },
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}(-[A-Z]{2})?$",
+      "default": "fr",
+      "description": "Langue principale (BCP 47 simplifié)."
+    },
+    "createdAt": { "$ref": "#/$defs/timestamp" },
+    "updatedAt": { "$ref": "#/$defs/timestamp" },
+    "creatorId": {
+      "$ref": "#/$defs/uuid",
+      "description": "Auteur ayant le rôle de créateur. Obligatoire si kind=recueil."
+    },
+    "authors": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/author" }
+    },
+    "entries": {
+      "type": "array",
+      "description": "Index des entrées, ordre sans signification. L'affichage est chronologique (voir README). Le détail vit dans entries/<id>.json.",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/entryRef" }
+    },
+    "encryption": {
+      "type": "object",
+      "description": "Présent si les entrées et médias sont chiffrés (phase 3). Le manifest reste en clair.",
+      "required": ["algorithm", "kdf", "salt", "iterations"],
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": { "const": "AES-GCM-256" },
+        "kdf": { "const": "PBKDF2-SHA256" },
+        "salt": { "type": "string", "contentEncoding": "base64" },
+        "iterations": { "type": "integer", "minimum": 100000 }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "contribution" } } },
+      "then": { "required": ["recueilId"] },
+      "else": { "required": ["creatorId", "title"], "not": { "required": ["recueilId"] } }
+    }
+  ],
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+      "description": "UUID en minuscules (v4 ou v7)."
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$"
+    },
+    "author": {
+      "type": "object",
+      "required": ["id", "name", "role"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "name": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "role": { "enum": ["creator", "contributor"] },
+        "relation": {
+          "type": "string",
+          "maxLength": 80,
+          "description": "Lien avec la personne du recueil, en texte libre (« petite-fille », « ami d'enfance »)."
+        },
+        "publicKey": { "$ref": "#/$defs/publicKey" }
+      }
+    },
+    "publicKey": {
+      "type": "object",
+      "required": ["keyId", "jwk"],
+      "additionalProperties": false,
+      "description": "Clé publique de l'auteur pour vérifier ses signatures (v2, optionnelle en v0). Une clé par auteur.",
+      "properties": {
+        "keyId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "16 premiers caractères hex du SHA-256 de l'empreinte JWK (RFC 7638)."
+        },
+        "jwk": {
+          "type": "object",
+          "required": ["kty", "crv", "x", "y"],
+          "additionalProperties": false,
+          "properties": {
+            "kty": { "const": "EC" },
+            "crv": { "const": "P-256" },
+            "x": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" },
+            "y": { "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$" }
+          }
+        }
+      }
+    },
+    "entryRef": {
+      "type": "object",
+      "required": ["id", "type", "authorId"],
+      "additionalProperties": false,
+      "description": "Copie légère de l'entrée, pour lister sans ouvrir chaque fichier.",
+      "properties": {
+        "id": { "$ref": "#/$defs/uuid" },
+        "type": { "$ref": "entry.schema.json#/$defs/entryType" },
+        "authorId": { "$ref": "#/$defs/uuid" },
+        "title": { "type": "string", "maxLength": 200 },
+        "date": { "$ref": "entry.schema.json#/$defs/fuzzyDate" }
+      }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "format": "remember-me", "formatVersion": "0.1", "kind": "recueil", "title": "X",
+  "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a01",
+  "recueilId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a01",
+  "creatorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+  "createdAt": "2026-09-26T18:00:00Z", "updatedAt": "2026-09-26T18:00:00Z",
+  "authors": [{ "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02", "name": "Jeanne", "role": "creator" }],
+  "entries": []
+}

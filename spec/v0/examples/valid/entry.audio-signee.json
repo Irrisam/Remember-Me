@@ -1,0 +1,25 @@
+{
+  "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b03",
+  "type": "audio",
+  "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+  "createdAt": "2026-09-26T18:20:00Z",
+  "title": "La chanson de ma mère",
+  "date": {
+    "label": "mon enfance"
+  },
+  "media": [
+    {
+      "path": "media/0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1c02.webm",
+      "mimeType": "audio/webm",
+      "size": 482304,
+      "sha256": "2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae",
+      "durationSec": 94.5,
+      "transcript": "Ma mère la chantait en étendant le linge..."
+    }
+  ],
+  "signature": {
+    "alg": "ES256",
+    "keyId": "43c6c108d4b7ff50",
+    "value": "O3UcBoFK-h9Ci8Ic3LfsAbwQ18gx1lpta-rMZBNS3T0X5RpGWn4ITPP7Yoiu2ZoarZUKpeneoUlWTA0AbaNY4w"
+  }
+}

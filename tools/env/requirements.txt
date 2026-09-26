@@ -1,0 +1,4 @@
+# Dépendances Python de l'environnement de dev Remember Me (versions figées)
+nodeenv==1.11.0
+jsonschema==4.26.0
+referencing==0.37.0

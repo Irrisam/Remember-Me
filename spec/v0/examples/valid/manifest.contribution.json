@@ -1,0 +1,20 @@
+{
+  "format": "remember-me",
+  "formatVersion": "0.2",
+  "kind": "contribution",
+  "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1d01",
+  "recueilId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a01",
+  "createdAt": "2026-09-26T19:12:00Z",
+  "updatedAt": "2026-09-26T19:12:00Z",
+  "authors": [
+    { "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a03", "name": "Léa", "role": "contributor", "relation": "petite-fille" }
+  ],
+  "entries": [
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b02",
+      "type": "photo",
+      "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a03",
+      "title": "La photo du bal retrouvée"
+    }
+  ]
+}

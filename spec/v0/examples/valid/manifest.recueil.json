@@ -1,0 +1,57 @@
+{
+  "format": "remember-me",
+  "formatVersion": "0.2",
+  "kind": "recueil",
+  "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a01",
+  "title": "Les souvenirs de Mamie Jeanne",
+  "subject": { "name": "Jeanne Martin", "birthDate": "1941-03" },
+  "language": "fr",
+  "createdAt": "2026-09-26T18:00:00Z",
+  "updatedAt": "2026-09-26T20:00:00+02:00",
+  "creatorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+  "authors": [
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+      "name": "Jeanne",
+      "role": "creator",
+      "publicKey": {
+        "keyId": "43c6c108d4b7ff50",
+        "jwk": {
+          "kty": "EC",
+          "crv": "P-256",
+          "x": "qHtCCpjtstzeq_serW7AeG-q7aocoNuJBMVqxyPEqNM",
+          "y": "JP7Xqbvuew_VTxLXa3itBPUVmnYvTL0KnLPPrDc_j9M"
+        }
+      }
+    },
+    { "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a03", "name": "Léa", "role": "contributor", "relation": "petite-fille" }
+  ],
+  "entries": [
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b01",
+      "type": "text",
+      "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+      "title": "Le bal du 14 juillet",
+      "date": { "value": "1959-07-14" }
+    },
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b02",
+      "type": "photo",
+      "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a03",
+      "title": "La photo du bal retrouvée",
+      "date": { "value": "1959", "approximate": true, "label": "l'été 1959" }
+    },
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b03",
+      "type": "audio",
+      "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02",
+      "title": "La chanson de ma mère",
+      "date": { "label": "mon enfance" }
+    },
+    {
+      "id": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1b04",
+      "type": "tombstone",
+      "authorId": "0192f3a1-7c2e-7b4d-9a10-3f6e2d8c1a02"
+    }
+  ]
+}
