@@ -14,7 +14,7 @@
 	import { story } from '$lib/rmbr/story.js';
 	import { formatDate } from '$lib/rmbr/timeline.js';
 	import { uuidv7 } from '$lib/rmbr/ids.js';
-	import { objectUrls, revokeAll } from '$lib/media-urls.js';
+	import { urlCache } from '$lib/media-urls.js';
 	import { unlockOwnerKey } from '$lib/rmbr/owner-key.js';
 	import { session, slug, rememberOwner } from '$lib/session.svelte.js';
 	import OwnerAccess from '$lib/components/OwnerAccess.svelte';
@@ -59,14 +59,15 @@
 	const canWrite = $derived(role === 'creator' || role === 'contributor');
 	const ownerKey = $derived(recueil?.manifest.ownerKey);
 
+	/** URLs des médias, gardées d'un rendu à l'autre : ajouter un souvenir ne recharge pas les autres photos. */
+	const mediaUrls = urlCache();
 	let urls = $state.raw(new Map());
 	$effect(() => {
 		if (!shown) return;
 		const media = pack ? new Map([...recueil.media, ...pack.media]) : recueil.media;
-		const u = objectUrls(shown.values(), media);
-		urls = u;
-		return () => revokeAll(u);
+		urls = mediaUrls.sync(shown.values(), media);
 	});
+	$effect(() => () => mediaUrls.clear());
 
 	function show(next) {
 		panel = next;

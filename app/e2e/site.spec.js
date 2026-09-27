@@ -38,6 +38,19 @@ test('souvenir : l’étape « Quand ? » affiche l’aperçu de la date et de l
 	await expect(page.locator('.entry-form .msg-error')).toContainText('La date doit être');
 });
 
+test.describe('adresse inconnue', () => {
+	// Sur une page 404, le navigateur et SvelteKit signalent l'adresse introuvable : c'est attendu.
+	// Forme [valeur, options] : Playwright lirait sinon le tableau lui-même comme ce couple.
+	test.use({ allowedErrors: [[/status of 404/, /Not found: \/page-qui-n-existe-pas/], { option: true }] });
+
+	test('page « introuvable », pas l’accueil', async ({ page }) => {
+		const response = await page.goto('/page-qui-n-existe-pas');
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Cette page n’existe pas');
+		// Le statut HTTP dépend de l'hébergeur : on le vérifie sur le site déployé.
+		if (process.env.E2E_BASE_URL) expect(response.status()).toBe(404);
+	});
+});
+
 test('PWA : manifeste, service worker, et l’app se recharge hors ligne', async ({ page, context }) => {
 	await page.goto('/');
 	const manifest = await page.evaluate(async () => (await fetch('/manifest.webmanifest')).json());

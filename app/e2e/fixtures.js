@@ -5,14 +5,19 @@ import { unzipSync, strFromU8 } from 'fflate';
 
 /**
  * `page` échoue le test à la moindre erreur console ou exception, et accepte les confirmations
- * (« Supprimer ce souvenir ? »).
+ * (« Supprimer ce souvenir ? »). `allowedErrors` : erreurs attendues par un test précis
+ * (ex. la page 404), à déclarer avec test.use().
  */
 export const test = base.extend({
-	page: async ({ page }, use) => {
+	allowedErrors: [[], { option: true }],
+	page: async ({ page, allowedErrors }, use) => {
 		const errors = [];
-		page.on('pageerror', (e) => errors.push(`exception : ${e.message}`));
+		const allowed = (text) => text.includes('ERR_INTERNET_DISCONNECTED') || allowedErrors.some((re) => re.test(text));
+		page.on('pageerror', (e) => {
+			if (!allowed(e.message)) errors.push(`exception : ${e.message}`);
+		});
 		page.on('console', (m) => {
-			if (m.type() === 'error' && !m.text().includes('ERR_INTERNET_DISCONNECTED')) errors.push(`console : ${m.text()}`);
+			if (m.type() === 'error' && !allowed(m.text())) errors.push(`console : ${m.text()}`);
 		});
 		page.on('dialog', (d) => d.accept());
 		await use(page);

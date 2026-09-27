@@ -103,7 +103,7 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 | Sujet | Idée |
 |---|---|
 | Mentions légales | Éditeur, hébergeur, contact : obligatoires en France, non rédigées (aucune info inventée) |
-| Hébergement | L'hôte doit servir `creer.html` sur `/creer` (Cloudflare Pages et GitHub Pages le font) |
+| Hébergement | ✅ Cloudflare Pages, https://remember-me-a6h.pages.dev, build à chaque push sur `master`. `404.html` générée (sinon Pages sert l'accueil en 200 partout). Vérifier un déploiement : `E2E_BASE_URL=… npm run e2e` |
 | Identité | Un proche se reconnaît dans la liste des auteurs, sans preuve tant qu'il n'a pas de clé : à durcir avec la signature |
 | Ouvrir un .rmbr depuis l'OS | `file_handlers` du manifeste + `launchQueue`, pour la PWA installée |
 | Vitesse vidéo | ≈ 7 min pour 3 min de vidéo. Pistes : ffmpeg multi-thread (en-têtes COOP/COEP, impossible sur GitHub Pages) ou WebCodecs (encodage matériel) |

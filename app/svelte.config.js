@@ -3,7 +3,8 @@ import adapter from '@sveltejs/adapter-static';
 /** Site 100 % statique : aucune donnée ne quitte le navigateur. */
 export default {
 	kit: {
-		adapter: adapter(),
+		// 404.html : sans elle, Cloudflare Pages sert l'accueil (en 200) pour toute adresse inconnue.
+		adapter: adapter({ fallback: '404.html' }),
 		/*
 		 * Politique de sécurité injectée dans chaque page (balise meta, avec les empreintes des scripts
 		 * de SvelteKit). Seule exception réseau : jsDelivr, pour l'outil vidéo, vérifié par empreinte.
