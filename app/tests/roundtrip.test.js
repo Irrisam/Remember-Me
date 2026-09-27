@@ -1,20 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
 import { createRecueil, addEntry, exportRmbr, readRmbr } from '../src/lib/rmbr/archive.js';
 import { timeline, formatDate } from '../src/lib/rmbr/timeline.js';
-
-const spec = (name) => JSON.parse(readFileSync(new URL(`../../spec/v0/${name}`, import.meta.url), 'utf8'));
-// strictTypes coupé : la spec met des contraintes dans des if/then sans répéter le type, c'est du 2020-12 valide.
-const ajv = new Ajv2020({ allErrors: true, strictTypes: false });
-addFormats(ajv);
-ajv.addSchema(spec('manifest.schema.json'));
-ajv.addSchema(spec('entry.schema.json'));
-const validManifest = ajv.getSchema('https://remember-me.app/spec/v0/manifest.schema.json');
-const validEntry = ajv.getSchema('https://remember-me.app/spec/v0/entry.schema.json');
+import { validManifest, validEntry } from './schema.js';
 
 async function sample() {
 	const r = createRecueil({ title: 'Les souvenirs de Mamie Jeanne', subjectName: 'Jeanne Martin', creatorName: 'Jeanne' });
@@ -116,9 +105,29 @@ test('viewer embarqué : statique, ordonné, texte échappé, médias en relatif
 	assert.doesNotMatch(html, /<script/i);
 	assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 	assert.match(html, /a &amp; &quot;b&quot;/);
-	assert.ok(html.indexOf('La photo du bal') < html.indexOf('Le bal<') && html.indexOf('Le bal<') < html.indexOf('Sans date'));
+	const at = (s) => html.indexOf(s);
+	assert.ok(at('La photo du bal') < at('Le bal<') && at('Le bal<') < at('<section id="sans-date">'));
 	const [path] = r.media.keys();
 	assert.ok(html.includes(`src="../${path}"`));
+});
+
+test('viewer : frise en liens d’ancre, réponses sous leur souvenir, âge', async () => {
+	const r = createRecueil({ title: 'Mamie', subjectName: 'Jeanne Martin', subjectBirthDate: '1941-03', creatorName: 'Jeanne' });
+	const me = r.manifest.creatorId;
+	const bal = await addEntry(r, { type: 'text', authorId: me, title: 'Le bal', text: 'x', date: { value: '1959-07-14' } });
+	await addEntry(r, { type: 'text', authorId: me, title: 'La maison', text: 'x', date: { value: '1975' } });
+	await addEntry(r, { type: 'text', authorId: me, title: 'Ma version', text: 'x', replyTo: bal.id });
+	const html = strFromU8(unzipSync(exportRmbr(r))['viewer/index.html']);
+
+	assert.match(html, /<nav class="frise"/);
+	for (const key of [1950, 1970]) assert.ok(html.includes(`href="#periode-${key}"`) && html.includes(`id="periode-${key}"`));
+	assert.match(html, /<li class="empty"><span class="stop" title="Les années 1960 : aucun souvenir">/);
+	assert.match(html, /<span class="birth">naissance<\/span>/);
+	assert.match(html, /Jeanne avait 18 ans/);
+	const bal_ = html.indexOf('Le bal<');
+	assert.ok(bal_ < html.indexOf('Ma version') && html.indexOf('Ma version') < html.indexOf('La maison'), 'la réponse suit son souvenir');
+	assert.doesNotMatch(html, /id="sans-date"/, 'la réponse non datée ne tombe pas dans « Sans date »');
+	assert.doesNotMatch(html, /<script/i);
 });
 
 test('viewer : un média absent de l’archive n’est pas référencé', async () => {

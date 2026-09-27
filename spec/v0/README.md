@@ -52,7 +52,7 @@ Supprimer un souvenir = ajouter une entrée `type: "tombstone"` qui vise l'origi
 | Règle | Détail |
 |---|---|
 | Qui peut supprimer | L'auteur de l'entrée d'origine ou le créateur |
-| À l'export suivant | Le fichier de l'entrée supprimée et ses médias qu'aucune autre entrée n'utilise sont retirés de l'archive |
+| À l'export suivant | Le fichier de l'entrée supprimée, sa ligne dans l'index `entries` du manifest (qui contient titre et date) et ses médias qu'aucune autre entrée n'utilise sont retirés de l'archive |
 | Ce qui reste | Seul le tombstone : un `id`, un auteur, une date, aucun contenu |
 | À la fusion | Une entrée visée par un tombstone n'est jamais réintégrée, même si un vieux pack la contient encore |
 | Correction ≠ suppression | Une correction garde l'ancienne version dans l'archive (historique). Un tombstone l'efface |
@@ -83,7 +83,7 @@ Ce sont des plafonds par fichier. La taille totale d'un recueil n'est pas limit�
 | 1 | Refuser le pack si `recueilId` ≠ `id` du recueil |
 | 2 | Refuser le pack si `formatVersion` a une majeure différente |
 | 3 | Entrées : union par `id`. Un `id` déjà présent est ignoré (append-only) |
-| 4 | Médias : union par `sha256`. Même hash = même fichier, on garde celui qui existe |
+| 4 | Médias : union par `path`. Même `path` et même `sha256` = même fichier, on garde celui qui existe. Même `path` avec un `sha256` différent = entrée refusée. Pas de dédoublonnage entre chemins différents : il faudrait réécrire `media[].path` dans des entrées immuables et signées |
 | 5 | Auteurs : union par `id`. Un pack ne peut pas contenir de `role: creator` |
 | 6 | Une entrée `supersedes` (correction ou tombstone) n'est acceptée que si son auteur est celui de l'entrée visée, ou le créateur |
 | 7 | Une entrée visée par un tombstone n'est jamais réintégrée |

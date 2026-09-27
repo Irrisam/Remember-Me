@@ -1,131 +1,206 @@
 <script>
-	import { createRecueil, addEntry, exportRmbr, readRmbr, MAIL_LIMIT } from '$lib/rmbr/archive.js';
-	import { timeline, formatDate } from '$lib/rmbr/timeline.js';
-	import { compressImage } from '$lib/rmbr/image.js';
-	import Recorder from '$lib/components/Recorder.svelte';
-
-	const PARTIAL_DATE = /^[0-9]{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12][0-9]|3[01]))?)?$/;
+	import {
+		createRecueil,
+		createPack,
+		addEntry,
+		deleteEntry,
+		exportRmbr,
+		exportRmbrc,
+		readRmbr,
+		readRmbrc,
+		MAIL_LIMIT
+	} from '$lib/rmbr/archive.js';
+	import { reviewPack, mergePack } from '$lib/rmbr/merge.js';
+	import { story } from '$lib/rmbr/story.js';
+	import { PARTIAL_DATE } from '$lib/rmbr/timeline.js';
+	import { uuidv7 } from '$lib/rmbr/ids.js';
+	import { objectUrls, revokeAll } from '$lib/media-urls.js';
+	import EntryForm from '$lib/components/EntryForm.svelte';
+	import Story from '$lib/components/Story.svelte';
+	import Moderation from '$lib/components/Moderation.svelte';
 
 	/** @type {import('$lib/rmbr/archive.js').Recueil | null} */
 	let recueil = $state.raw(null);
+	/** creator : crée et modère ; contributor : prépare un pack ; reader : consulte. null = à demander. */
+	let role = $state(null);
+	/** Auteur qui utilise l'app. */
+	let me = $state.raw(null);
+	/** Pack en préparation (contributor). */
+	let pack = $state.raw(null);
+	/** Contribution en cours d'examen (creator). */
+	let review = $state.raw(null);
+	/** Changements pas encore enregistrés dans un fichier. */
+	let dirty = $state(false);
+	let replyTo = $state.raw(null);
 	let warnings = $state([]);
+	let notice = $state('');
 	let error = $state('');
-	let busy = $state(false);
 
-	let setup = $state({ title: '', subjectName: '', creatorName: '' });
-	let draft = $state(emptyDraft());
-	let audio = $state.raw(null);
-	let recording = $state(false);
-	/** @type {HTMLInputElement} */
-	let photoInput;
+	let setup = $state({ title: '', subjectName: '', birthDate: '', creatorName: '' });
+	let newcomer = $state({ name: '', relation: '' });
 
-	const view = $derived(recueil ? timeline(recueil.entries, recueil.manifest.creatorId) : null);
-	const authorName = $derived(
-		new Map((recueil?.manifest.authors ?? []).map((a) => [a.id, a.name]))
-	);
+	const creatorId = $derived(recueil?.manifest.creatorId);
+	const creator = $derived(recueil?.manifest.authors.find((a) => a.id === creatorId));
+	const contributors = $derived(recueil?.manifest.authors.filter((a) => a.role === 'contributor') ?? []);
+	/**
+	 * Ce qu'on affiche : le recueil, plus le pack en préparation pour un proche.
+	 * Toujours une nouvelle Map : les entrées sont ajoutées sur place, la même référence ne déclencherait rien.
+	 */
+	const shown = $derived(recueil && new Map(pack ? [...recueil.entries, ...pack.entries] : recueil.entries));
+	const view = $derived(shown ? story(shown, recueil.manifest) : null);
+	const names = $derived(new Map([...(recueil?.manifest.authors ?? []), ...(me ? [me] : [])].map((a) => [a.id, a.name])));
+	const pending = $derived(pack ? [...pack.entries.values()].length : 0);
 
-	/** URLs locales des médias, libérées quand le recueil change. */
-	let mediaUrls = $state.raw(new Map());
+	let urls = $state.raw(new Map());
 	$effect(() => {
-		const urls = new Map();
-		if (recueil) {
-			for (const entry of recueil.entries.values()) {
-				for (const item of entry.media ?? []) {
-					const bytes = recueil.media.get(item.path);
-					if (bytes) urls.set(item.path, URL.createObjectURL(new Blob([bytes], { type: item.mimeType })));
-				}
-			}
-		}
-		mediaUrls = urls;
-		return () => urls.forEach((u) => URL.revokeObjectURL(u));
+		if (!shown) return;
+		const media = pack ? new Map([...recueil.media, ...pack.media]) : recueil.media;
+		const u = objectUrls(shown.values(), media);
+		urls = u;
+		return () => revokeAll(u);
 	});
 
-	function emptyDraft() {
-		return { title: '', text: '', dateValue: '', approximate: false, dateLabel: '' };
+	// Fichier unique, pas de compte : on prévient avant de perdre des changements.
+	$effect(() => {
+		if (!dirty) return;
+		const guard = (e) => e.preventDefault();
+		window.addEventListener('beforeunload', guard);
+		return () => window.removeEventListener('beforeunload', guard);
+	});
+
+	function reset() {
+		error = '';
+		notice = '';
+		warnings = [];
 	}
 
 	function start(e) {
 		e.preventDefault();
+		reset();
+		const birthDate = setup.birthDate.trim();
+		if (birthDate && !PARTIAL_DATE.test(birthDate)) {
+			error = 'La date de naissance doit être une année (1941), un mois (1941-03) ou un jour (1941-03-12).';
+			return;
+		}
 		recueil = createRecueil({
 			title: setup.title.trim(),
 			subjectName: setup.subjectName.trim(),
+			subjectBirthDate: birthDate,
 			creatorName: setup.creatorName.trim()
 		});
-		warnings = [];
-		error = '';
+		role = 'creator';
+		me = recueil.manifest.authors[0];
+		dirty = true;
 	}
 
-	async function save(e) {
-		e.preventDefault();
-		error = '';
-		const dateValue = draft.dateValue.trim();
-		if (dateValue && !PARTIAL_DATE.test(dateValue)) {
-			error = 'La date doit être une année (1959), un mois (1959-07) ou un jour (1959-07-14).';
-			return;
-		}
-		const files = [...(photoInput.files ?? [])];
-		if (!files.length && !audio && !draft.text.trim()) {
-			error = 'Écrivez quelques mots, ajoutez une photo ou enregistrez votre voix.';
-			return;
-		}
-
-		busy = true;
-		try {
-			const photos = [];
-			for (const f of files) photos.push(await compressImage(f));
-			let date;
-			if (dateValue || draft.dateLabel.trim()) {
-				date = {};
-				if (dateValue) date.value = dateValue;
-				if (dateValue && draft.approximate) date.approximate = true;
-				if (draft.dateLabel.trim()) date.label = draft.dateLabel.trim();
-			}
-			// POC : c'est toujours le créateur qui écrit. Les contributeurs arrivent en phase 2.
-			// Le type dit la nature principale : la photo prime, puis la voix, sinon le texte.
-			await addEntry(recueil, {
-				type: photos.length ? 'photo' : audio ? 'audio' : 'text',
-				authorId: recueil.manifest.creatorId,
-				title: draft.title.trim(),
-				text: draft.text.trim(),
-				date,
-				media: audio ? [...photos, audio] : photos
-			});
-			recueil = { ...recueil };
-			draft = emptyDraft();
-			audio = null;
-			photoInput.value = '';
-		} catch (err) {
-			error = err.message;
-		} finally {
-			busy = false;
-		}
-	}
-
-	function download() {
-		const bytes = exportRmbr(recueil);
-		warnings = bytes.length > MAIL_LIMIT
-			? ['Ce recueil dépasse 25 Mo : il risque d’être refusé en pièce jointe de mail.']
-			: [];
-		const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${slug(recueil.manifest.title)}.rmbr`;
-		a.click();
-		URL.revokeObjectURL(url);
-	}
-
-	async function open(e) {
+	async function openRecueil(e) {
 		const file = e.currentTarget.files?.[0];
+		e.currentTarget.value = '';
 		if (!file) return;
-		error = '';
+		reset();
 		try {
 			const res = await readRmbr(new Uint8Array(await file.arrayBuffer()));
 			recueil = res.recueil;
 			warnings = res.warnings;
+			role = null;
 		} catch (err) {
 			error = err.message;
 		}
+	}
+
+	function become(nextRole, author) {
+		role = nextRole;
+		me = author;
+		pack = nextRole === 'contributor' ? createPack(recueil, author) : null;
+	}
+
+	function joinAsNewcomer(e) {
+		e.preventDefault();
+		become('contributor', { id: uuidv7(), name: newcomer.name.trim(), relation: newcomer.relation.trim() || undefined });
+	}
+
+	async function save(input) {
+		notice = '';
+		if (role === 'creator') {
+			await addEntry(recueil, { ...input, authorId: me.id });
+			recueil = { ...recueil };
+		} else {
+			await addEntry(pack, { ...input, authorId: me.id });
+			pack = { ...pack };
+		}
+		dirty = true;
+		replyTo = null;
+	}
+
+	function canDelete(entry) {
+		return role === 'creator' || (role === 'contributor' && entry.authorId === me.id);
+	}
+
+	async function remove(entry) {
+		if (!confirm(`Supprimer « ${entry.title ?? 'ce souvenir'} » ? Il sera retiré du recueil.`)) return;
+		if (role === 'creator') {
+			await deleteEntry(recueil, entry.id, me.id);
+			recueil = { ...recueil };
+		} else if (pack.entries.has(entry.id)) {
+			// Pas encore envoyé : on le retire simplement du pack.
+			pack.entries.delete(entry.id);
+			pack.manifest.entries = pack.manifest.entries.filter((r) => r.id !== entry.id);
+			for (const item of entry.media ?? []) pack.media.delete(item.path);
+			pack = { ...pack };
+		} else {
+			await deleteEntry(pack, entry.id, me.id);
+			pack = { ...pack };
+		}
+		dirty = true;
+	}
+
+	function download(bytes, name) {
+		warnings = bytes.length > MAIL_LIMIT ? ['Ce fichier dépasse 25 Mo : il risque d’être refusé en pièce jointe de mail.'] : [];
+		const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }));
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = name;
+		a.click();
+		URL.revokeObjectURL(url);
+		dirty = false;
+	}
+
+	function saveRecueil() {
+		download(exportRmbr(recueil), `${slug(recueil.manifest.title)}.rmbr`);
+		notice = 'Recueil enregistré. Envoyez ce fichier à vos proches, et gardez-en une copie.';
+	}
+
+	function sendPack() {
+		download(exportRmbrc(pack), `contribution-${slug(me.name)}-${new Date().toISOString().slice(0, 10)}.rmbrc`);
+		notice = `Contribution enregistrée. Envoyez ce fichier à ${creator.name}.`;
+	}
+
+	async function importPack(e) {
+		const file = e.currentTarget.files?.[0];
 		e.currentTarget.value = '';
+		if (!file) return;
+		reset();
+		try {
+			const res = await readRmbrc(new Uint8Array(await file.arrayBuffer()));
+			review = { pack: res.pack, items: await reviewPack(recueil, res.pack) };
+			warnings = res.warnings;
+		} catch (err) {
+			error = err.message;
+		}
+	}
+
+	function merge(accepted) {
+		recueil = mergePack(recueil, review.pack, review.items, accepted);
+		review = null;
+		dirty = true;
+		notice = `${accepted.size} souvenir(s) ajouté(s). Enregistrez le recueil puis renvoyez-le à tout le monde.`;
+	}
+
+	function close() {
+		if (dirty && !confirm('Des changements ne sont pas enregistrés dans un fichier. Fermer quand même ?')) return;
+		recueil = pack = review = me = replyTo = role = null;
+		dirty = false;
+		reset();
 	}
 
 	function slug(s) {
@@ -147,6 +222,11 @@
 				<label>De qui parle-t-il ? <span class="hint">(facultatif)</span>
 					<input bind:value={setup.subjectName} maxlength="200" placeholder="Jeanne Martin" />
 				</label>
+				{#if setup.subjectName.trim()}
+					<label>Sa date de naissance <span class="hint">(facultatif : 1941, 1941-03 ou 1941-03-12)</span>
+						<input bind:value={setup.birthDate} inputmode="numeric" placeholder="1941" />
+					</label>
+				{/if}
 				<label>Votre prénom
 					<input bind:value={setup.creatorName} required maxlength="120" placeholder="Jeanne" />
 				</label>
@@ -157,89 +237,79 @@
 		<section class="card">
 			<h2>Ouvrir un recueil reçu</h2>
 			<label class="file">Choisir un fichier .rmbr
-				<input type="file" accept=".rmbr" onchange={open} />
+				<input type="file" accept=".rmbr" onchange={openRecueil} />
 			</label>
 		</section>
+		{#if error}<p class="error" role="alert">{error}</p>{/if}
 	{:else}
 		<header>
 			<h1>{recueil.manifest.title}</h1>
 			{#if recueil.manifest.subject}<p class="lead">{recueil.manifest.subject.name}</p>{/if}
+			{#if me}<p class="hint">Vous êtes {me.name}{role === 'creator' ? ', créateur du recueil' : ''}.</p>{/if}
 			<div class="actions">
-				<button onclick={download}>Enregistrer le fichier .rmbr</button>
-				<button class="secondary" onclick={() => (recueil = null)}>Fermer</button>
+				{#if role === 'creator'}
+					<button onclick={saveRecueil}>Enregistrer le fichier .rmbr</button>
+					<label class="button secondary">Importer une contribution
+						<input type="file" accept=".rmbrc" onchange={importPack} hidden />
+					</label>
+				{:else if role === 'contributor'}
+					<button onclick={sendPack} disabled={!pending}>Envoyer ma contribution ({pending})</button>
+				{/if}
+				<button class="secondary" onclick={close}>Fermer</button>
 			</div>
 		</header>
 
-		<section class="card">
-			<h2>Ajouter un souvenir</h2>
-			<form onsubmit={save}>
-				<label>Titre <span class="hint">(facultatif)</span>
-					<input bind:value={draft.title} maxlength="200" placeholder="Le bal du 14 juillet" />
-				</label>
-				<label>Racontez
-					<textarea bind:value={draft.text} rows="5" maxlength="50000"></textarea>
-				</label>
-				<div class="row">
-					<label>Date <span class="hint">(1959, 1959-07 ou 1959-07-14)</span>
-						<input bind:value={draft.dateValue} inputmode="numeric" placeholder="1959" />
+		{#if error}<p class="error" role="alert">{error}</p>{/if}
+		{#if notice}<p class="notice">{notice}</p>{/if}
+		{#each warnings as w}<p class="warning">{w}</p>{/each}
+
+		{#if role === null}
+			<section class="card">
+				<h2>Qui êtes-vous ?</h2>
+				<div class="choices">
+					<button onclick={() => become('creator', creator)}>Je suis {creator.name}, j'ai créé ce recueil</button>
+					{#each contributors as author (author.id)}
+						<button class="secondary" onclick={() => become('contributor', author)}>Je suis {author.name}</button>
+					{/each}
+					<button class="secondary" onclick={() => become('reader', null)}>Je veux seulement le lire</button>
+				</div>
+				<form onsubmit={joinAsNewcomer}>
+					<h3>Je suis un proche et je veux ajouter des souvenirs</h3>
+					<label>Votre prénom
+						<input bind:value={newcomer.name} required maxlength="120" placeholder="Léa" />
 					</label>
-					<label class="check"><input type="checkbox" bind:checked={draft.approximate} /> environ</label>
-				</div>
-				<label>Ou en vos mots <span class="hint">(facultatif)</span>
-					<input bind:value={draft.dateLabel} maxlength="100" placeholder="l'été de mes 20 ans" />
-				</label>
-				<label>Photos <span class="hint">(facultatif)</span>
-					<input bind:this={photoInput} type="file" accept="image/*" multiple />
-				</label>
-				<div class="field">
-					<span class="label">Votre voix <span class="hint">(facultatif)</span></span>
-					<Recorder bind:value={audio} bind:recording />
-				</div>
-				<button type="submit" disabled={busy || recording}>{busy ? 'Préparation…' : 'Ajouter ce souvenir'}</button>
-			</form>
-		</section>
-	{/if}
-
-	{#if error}<p class="error" role="alert">{error}</p>{/if}
-	{#each warnings as w}<p class="warning">{w}</p>{/each}
-
-	{#if view}
-		<section>
-			{#each view.dated as entry (entry.id)}
-				{@render memory(entry)}
-			{/each}
-			{#if view.undated.length}
-				<h2 class="period">Sans date</h2>
-				{#each view.undated as entry (entry.id)}
-					{@render memory(entry)}
-				{/each}
+					<label>Votre lien avec {recueil.manifest.subject?.name ?? creator.name} <span class="hint">(facultatif)</span>
+						<input bind:value={newcomer.relation} maxlength="80" placeholder="petite-fille" />
+					</label>
+					<button type="submit">Continuer</button>
+				</form>
+			</section>
+		{:else}
+			{#if review}
+				{#key review}
+					<Moderation {recueil} pack={review.pack} items={review.items} onmerge={merge} oncancel={() => (review = null)} />
+				{/key}
 			{/if}
-			{#if !view.dated.length && !view.undated.length}
-				<p class="hint">Aucun souvenir pour l'instant.</p>
+
+			{#if role !== 'reader' && !review}
+				<EntryForm onsave={save} {replyTo} oncancelreply={() => (replyTo = null)} />
 			{/if}
-		</section>
+
+			<Story story={view} subject={recueil.manifest.subject} {urls} {names} {entryActions} />
+		{/if}
 	{/if}
 </main>
 
-{#snippet memory(entry)}
-	<article class="card">
-		{#if entry.date}<p class="date">{formatDate(entry.date)}</p>{/if}
-		{#if entry.title}<h3>{entry.title}</h3>{/if}
-		{#each entry.media ?? [] as item (item.path)}
-			{#if mediaUrls.get(item.path)}
-				<figure>
-					{#if item.mimeType.startsWith('image/')}
-						<img src={mediaUrls.get(item.path)} alt={item.caption ?? ''} width={item.width} height={item.height} />
-					{:else if item.mimeType.startsWith('audio/')}
-						<audio controls preload="none" src={mediaUrls.get(item.path)}></audio>
-					{/if}
-					{#if item.caption}<figcaption>{item.caption}</figcaption>{/if}
-				</figure>
-			{/if}
-		{/each}
-		{#if entry.text}<p class="text">{entry.text}</p>{/if}
-		<p class="hint">Par {authorName.get(entry.authorId) ?? 'auteur inconnu'}</p>
-	</article>
+{#snippet entryActions(entry)}
+	{#if pack?.entries.has(entry.id)}<span class="badge">Pas encore envoyé</span>{/if}
+	{#if role === 'creator' || role === 'contributor'}
+		<button class="small secondary" onclick={() => { replyTo = entry; scrollTo({ top: 0, behavior: 'smooth' }); }}>
+			Compléter ce souvenir
+		</button>
+	{/if}
+	{#if canDelete(entry)}
+		<button class="small secondary" onclick={() => remove(entry)}>Supprimer</button>
+	{/if}
 {/snippet}
 
 <style>
@@ -249,25 +319,14 @@
 		color: #2b2724;
 		font: 18px/1.6 Georgia, 'Times New Roman', serif;
 	}
-	main {
-		max-width: 680px;
-		margin: 0 auto;
-		padding: 24px 16px 64px;
-	}
+	main { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; }
 	h1 { font-size: 2rem; margin: 0 0 4px; }
-	.lead { color: #6b625a; margin-top: 0; }
-	.card {
-		background: #fff;
-		border: 1px solid #e6dfd5;
-		border-radius: 12px;
-		padding: 20px;
-		margin: 16px 0;
-	}
+	.lead { color: #6b625a; margin: 0; }
+	.card { background: #fff; border: 1px solid #e6dfd5; border-radius: 12px; padding: 20px; margin: 16px 0; }
 	form { display: grid; gap: 14px; }
-	label, .field { display: grid; gap: 4px; font-weight: 600; }
-	audio { width: 100%; }
+	label { display: grid; gap: 4px; font-weight: 600; }
 	.hint { font-weight: 400; color: #8a8076; font-size: 0.9rem; }
-	input, textarea {
+	input {
 		font: inherit;
 		font-weight: 400;
 		padding: 10px 12px;
@@ -275,10 +334,8 @@
 		border-radius: 8px;
 		background: #fffdfa;
 	}
-	.row { display: flex; gap: 16px; align-items: end; flex-wrap: wrap; }
-	.row > label:first-child { flex: 1; }
-	.check { display: flex; gap: 8px; align-items: center; padding-bottom: 12px; }
-	button {
+	button, .button {
+		display: inline-block;
 		font: inherit;
 		font-weight: 600;
 		padding: 12px 20px;
@@ -288,17 +345,14 @@
 		color: #fff;
 		cursor: pointer;
 	}
-	button:disabled { opacity: 0.6; cursor: wait; }
-	button.secondary { background: #e6dfd5; color: #2b2724; }
-	.actions { display: flex; gap: 12px; flex-wrap: wrap; }
+	button:disabled { opacity: 0.6; cursor: not-allowed; }
+	.secondary { background: #e6dfd5; color: #2b2724; }
+	.small { padding: 8px 14px; font-size: 0.95rem; }
+	.actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 12px; align-items: center; }
+	.choices { display: grid; gap: 12px; margin-bottom: 24px; }
 	.file input { font-size: 1rem; }
-	.date { color: #8a6d4f; margin: 0; font-style: italic; }
-	h3 { margin: 4px 0 12px; }
-	.text { white-space: pre-wrap; }
-	figure { margin: 0 0 12px; }
-	img { max-width: 100%; height: auto; border-radius: 8px; }
-	figcaption { color: #6b625a; font-size: 0.9rem; }
-	.period { margin-top: 32px; color: #6b625a; }
+	.badge { background: #f3e3c3; color: #7a5200; border-radius: 999px; padding: 4px 12px; font-size: 0.85rem; }
 	.error { color: #9b2c2c; font-weight: 600; }
 	.warning { color: #8a5a00; }
+	.notice { background: #e4efe0; color: #2f5a26; padding: 12px 16px; border-radius: 8px; }
 </style>

@@ -74,13 +74,31 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 1. ✅ Spec v0.2 du format en JSON Schema → `spec/v0/` (README = règles de fusion, tri, suppression, signature)
 2. ✅ POC dans `app/` : créer un recueil, texte + photos, export `.rmbr`, réouverture, affichage chronologique. Validé dans le navigateur
 3. ✅ Viewer embarqué : HTML statique **sans JavaScript** généré à chaque export (texte échappé, CSP, médias en `../media/`). Vérifié en `file://`
-4. 🟡 Audio : enregistrement micro (MediaRecorder, Opus 32 kbit/s, ≤ 30 min, ≤ 10 Mo) dans `app/src/lib/components/Recorder.svelte`. Tests OK, reste à valider au micro dans le navigateur
+4. ✅ Audio : enregistrement micro (MediaRecorder, Opus 32 kbit/s, ≤ 30 min, ≤ 10 Mo) dans `app/src/lib/components/Recorder.svelte`
+5. ✅ Phase 2 collaboratif : rôles à l'ouverture (créateur / proche / lecteur), packs `.rmbrc`, examen + fusion selon les 10 règles, modération, suppression (tombstone retiré à l'export), vérification des signatures ES256
+6. ✅ Vidéo compressée : ffmpeg.wasm chargé à la demande depuis jsDelivr (version figée, SHA-256 vérifié), MP4 H.264/AAC 720p, débit calculé pour rester < 20 Mo, ≤ 3 min. Environ 2,5× la durée de la vidéo pour la compresser (mono-thread)
+
+7. ✅ Visualisation : frise par décennie (par année si < 10 ans, depuis la naissance si connue), récit par périodes, réponses sous leur souvenir, âge de la personne. Identique dans l'app et le viewer (sans JS, frise en liens d'ancre). Logique commune dans `story.js`
+
+## 📝 Front à fignoler (plus tard)
+| Sujet | Idée |
+|---|---|
+| Identité | Un proche se reconnaît dans la liste des auteurs, sans preuve tant qu'il n'a pas de clé : à durcir avec la signature |
+| Maquettes | Les 3 écrans de la phase 0 n'ont jamais été faits |
+| Vitesse vidéo | ≈ 7 min pour 3 min de vidéo. Pistes : ffmpeg multi-thread (en-têtes COOP/COEP, impossible sur GitHub Pages) ou WebCodecs (encodage matériel) |
+| Sous-titres vidéo | Brancher `media.transcript` sur une piste `<track>` |
 
 ## 🗂️ Code
 | Chemin | Rôle |
 |---|---|
 | `app/src/lib/rmbr/archive.js` | Création, export `.rmbr` (fflate), lecture + contrôles hors schéma |
 | `app/src/lib/rmbr/timeline.js` | Tri chronologique, masquage tombstones / entrées remplacées |
+| `app/src/lib/rmbr/story.js` | Récit : fils (souvenir + réponses), périodes de la frise, âge. Partagé app + viewer |
+| `app/src/lib/rmbr/merge.js` | Examen d'un pack (règles 1-8) et fusion des entrées acceptées |
+| `app/src/lib/rmbr/signature.js` | JCS (RFC 8785), keyId (RFC 7638), signature / vérification ES256 |
+| `app/src/lib/rmbr/video.js` | Compression vidéo (ffmpeg.wasm). Mettre à jour `@ffmpeg/core` implique de changer URL + empreintes, un test le vérifie |
+| `app/src/lib/rmbr/video-plan.js` | Budget de débit, arguments ffmpeg/ffprobe (logique pure, testée) |
+| `app/src/lib/components/` | `EntryForm`, `MemoryCard`, `Moderation`, `Recorder`, `VideoPicker`, `Story`, `Frise` |
 | `app/src/lib/rmbr/viewer.js` | Génère `viewer/index.html` (lecture hors ligne, sans JS) |
 | `app/src/lib/rmbr/image.js` | Compression photo client (WebP ≤ 3 Mo, 2048 px, sans EXIF) |
 | `app/tests/` | Tests `node:test`, valident les fichiers exportés contre `spec/v0` |
