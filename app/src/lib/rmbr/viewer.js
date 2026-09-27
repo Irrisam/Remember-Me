@@ -24,6 +24,7 @@ export function renderViewer(recueil) {
 			const date = entry.date ? esc(formatDate(entry.date)) : '';
 			parts.push(`<p class="date">${date}${date && age ? ' · ' : ''}${age ? `<span class="age">${esc(age)}</span>` : ''}</p>`);
 		}
+		if (entry.prompt) parts.push(`<p class="prompt">« ${esc(entry.prompt)} »</p>`);
 		if (entry.title) parts.push(`<h3>${esc(entry.title)}</h3>`);
 		for (const item of entry.media ?? []) {
 			if (MEDIA_PATH.test(item.path) && recueil.media.has(item.path)) parts.push(media(item));
@@ -69,6 +70,7 @@ h2::after { content: ''; flex: 1; height: 1px; background: #e3d8c8; }
 h3 { margin: 0 0 14px; font-size: 1.45rem; line-height: 1.25; }
 .date { display: flex; flex-wrap: wrap; gap: 4px 14px; color: #a0522d; margin: 0 0 6px; font-style: italic; }
 .age { font-style: normal; color: #6f655b; }
+.prompt { margin: 0 0 8px; padding-left: 12px; border-left: 2px solid #a0522d; color: #5e544b; font-style: italic; }
 .text { white-space: pre-wrap; margin: 0 0 12px; }
 .by, figcaption, footer { color: #6f655b; font-size: 0.95rem; }
 .by { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid #e3d8c8; }

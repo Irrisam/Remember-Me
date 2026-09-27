@@ -178,7 +178,8 @@ export async function editEntry(target, original, input, signer) {
 			authorId: original.authorId,
 			supersedes: original.id,
 			replyTo: original.replyTo,
-			prompt: original.prompt
+			// La question peut être gardée, changée ou retirée ; si l'appelant ne dit rien, on garde l'originale.
+			prompt: 'prompt' in input ? input.prompt : original.prompt
 		},
 		signer
 	);

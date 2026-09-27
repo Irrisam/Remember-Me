@@ -5,6 +5,7 @@
 	import { ageAt, formatAge } from '$lib/rmbr/story.js';
 	import Recorder from './Recorder.svelte';
 	import VideoPicker from './VideoPicker.svelte';
+	import PromptIdeas from './PromptIdeas.svelte';
 
 	/**
 	 * Ajout guidé d'un souvenir, en trois étapes. onsave reçoit une entrée prête pour addEntry, sans authorId.
@@ -12,14 +13,17 @@
 	 * Sur grand écran, les étapes passent dans une colonne à gauche ; sur téléphone, en onglets au-dessus.
 	 * Avec `initial`, le formulaire modifie ce souvenir : champs préremplis, médias existants repris
 	 * sous la forme `{ keep: item }` (le parent y joint les octets).
+	 * `ideas` : questions guidées proposées (jamais imposées) ; `startPrompt` : question déjà choisie.
 	 * @type {{ onsave: (input: any) => Promise<void>, replyTo?: any, subject?: any, initial?: any,
-	 *   urls?: Map<string, string>, oncancel: () => void }}
+	 *   urls?: Map<string, string>, oncancel: () => void,
+	 *   ideas?: { voice: 'self' | 'other', name: string, used: string[] }, startPrompt?: string }}
 	 */
-	let { onsave, replyTo = null, subject, initial = null, urls = new Map(), oncancel } = $props();
+	let { onsave, replyTo = null, subject, initial = null, urls = new Map(), oncancel, ideas, startPrompt = '' } = $props();
 
 	// Lu une seule fois : le parent recrée le formulaire pour chaque souvenir modifié.
 	const start = untrack(() => initial);
 	const startMedia = start?.media ?? [];
+	let prompt = $state(untrack(() => start?.prompt ?? startPrompt));
 
 	const STEPS = [
 		{ label: 'Racontez', help: 'Le souvenir, en quelques mots ou en quelques pages.' },
@@ -126,6 +130,8 @@
 				text: draft.text.trim(),
 				date,
 				replyTo: replyTo?.id,
+				// Toujours présent (même vide) : en modification, une question retirée doit le rester.
+				prompt: prompt || undefined,
 				media: [...(videoItem ? [videoItem] : []), ...photoItems, ...(audioItem ? [audioItem] : [])]
 			});
 		} catch (err) {
@@ -165,6 +171,9 @@
 
 		<form onsubmit={submit} novalidate>
 			<div class="step" data-step="0" hidden={step !== 0}>
+				{#if ideas && !replyTo}
+					<PromptIdeas bind:value={prompt} voice={ideas.voice} name={ideas.name} used={ideas.used} />
+				{/if}
 				<label class="field">Un titre <span class="hint">(facultatif)</span>
 					<input class="input input-title" bind:value={draft.title} maxlength="200" placeholder="Le bal du 14 juillet" />
 				</label>

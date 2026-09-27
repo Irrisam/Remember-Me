@@ -16,6 +16,7 @@
 	import { uuidv7 } from '$lib/rmbr/ids.js';
 	import { urlCache } from '$lib/media-urls.js';
 	import { unlockOwnerKey } from '$lib/rmbr/owner-key.js';
+	import { promptVoice, subjectFirstName, pickPrompt } from '$lib/rmbr/prompts.js';
 	import { session, slug, rememberOwner } from '$lib/session.svelte.js';
 	import OwnerAccess from '$lib/components/OwnerAccess.svelte';
 	import PasswordField from '$lib/components/PasswordField.svelte';
@@ -58,6 +59,29 @@
 	const count = $derived(view ? view.periods.reduce((n, p) => n + p.threads.length, 0) + view.undated.length : 0);
 	const canWrite = $derived(role === 'creator' || role === 'contributor');
 	const ownerKey = $derived(recueil?.manifest.ownerKey);
+	/** Questions guidées : voix (« vous » ou prénom) et questions déjà utilisées dans le recueil. */
+	const ideas = $derived(
+		recueil && {
+			voice: promptVoice(recueil.manifest, me),
+			name: subjectFirstName(recueil.manifest),
+			used: [...shown.values()].map((e) => e.prompt).filter(Boolean)
+		}
+	);
+	/**
+	 * Recueil vide : une question d'exemple, pour qui veut s'en servir. Tirage stable (même recueil, même voix,
+	 * même question d'un rendu à l'autre) ; « Une autre idée » incrémente le tirage.
+	 */
+	let ideaDraw = $state(0);
+	const firstIdea = $derived(ideas && pickPrompt({ ...ideas, random: () => seeded(`${recueil.manifest.id}|${ideas.voice}|${ideaDraw}`) }));
+	/** Question choisie depuis l'écran vide, reprise par le formulaire. */
+	let startPrompt = $state('');
+
+	/** Nombre pseudo-aléatoire dans [0, 1) tiré d'une chaîne (FNV-1a). */
+	function seeded(s) {
+		let h = 0x811c9dc5;
+		for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 0x01000193);
+		return (h >>> 0) / 2 ** 32;
+	}
 
 	/** URLs des médias, gardées d'un rendu à l'autre : ajouter un souvenir ne recharge pas les autres photos. */
 	const mediaUrls = urlCache();
@@ -74,6 +98,7 @@
 		error = '';
 		if (next !== 'review') review = null;
 		if (next === null) replyTo = editTarget = null;
+		if (next !== 'entry') startPrompt = '';
 	}
 
 	function chooseOwner() {
@@ -145,7 +170,7 @@
 		if (role === 'creator') return editEntry(recueil, original, data, session.signer);
 		if (pack.entries.has(original.id)) {
 			dropFromPack(original);
-			return addEntry(pack, { ...data, authorId: me.id, replyTo: original.replyTo, prompt: original.prompt });
+			return addEntry(pack, { ...data, authorId: me.id, replyTo: original.replyTo });
 		}
 		return editEntry(pack, original, data);
 	}
@@ -391,7 +416,7 @@
 				{/key}
 			{:else if panel === 'entry'}
 				{#key editTarget}
-					<EntryForm onsave={save} {replyTo} {subject} initial={editTarget} {urls} oncancel={() => show(null)} />
+					<EntryForm onsave={save} {replyTo} {subject} initial={editTarget} {urls} {ideas} {startPrompt} oncancel={() => show(null)} />
 				{/key}
 			{/if}
 
@@ -401,6 +426,18 @@
 					{#if canWrite}
 						<p>Commencez par un souvenir, même petit : une anecdote, une photo, quelques mots enregistrés à voix haute.</p>
 						<button class="btn" onclick={() => show('entry')}>＋ Ajouter un premier souvenir</button>
+						{#if firstIdea}
+							<div class="first-idea">
+								<p class="hint">Ou, si vous cherchez par où commencer :</p>
+								<p class="idea">« {firstIdea.text} »</p>
+								<div class="btn-row">
+									<button class="btn btn-secondary btn-sm" onclick={() => { show('entry'); startPrompt = firstIdea.text; }}>
+										Répondre à cette question
+									</button>
+									<button class="btn btn-ghost btn-sm" onclick={() => ideaDraw++}>Une autre idée</button>
+								</div>
+							</div>
+						{/if}
 					{:else}
 						<p>Aucun souvenir n'a encore été ajouté.</p>
 					{/if}
@@ -539,5 +576,23 @@
 	.empty-story {
 		margin-top: 24px;
 		text-align: center;
+	}
+	.first-idea {
+		display: grid;
+		gap: 10px;
+		justify-items: center;
+		margin-top: 28px;
+		padding-top: 24px;
+		border-top: 1px solid var(--line-strong);
+	}
+	.first-idea p {
+		margin: 0;
+	}
+	.idea {
+		font: italic 500 1.3rem/1.4 var(--font-display);
+		max-width: 36ch;
+	}
+	.first-idea .btn-row {
+		justify-content: center;
 	}
 </style>

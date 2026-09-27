@@ -85,7 +85,7 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 11. ✅ Accès propriétaire par mot de passe (spec v0.3) : **facultatif mais conseillé**, **indice seulement** en cas d'oubli (choix de l'utilisateur). Clé ES256 chiffrée dans `manifest.ownerKey`, actions du propriétaire signées, alerte locale si la clé change
 12. ✅ Prêt à déployer : tests navigateur `app/e2e/` (Playwright, `npm run e2e`), CI GitHub Actions, CSP par empreintes, `static/_headers`, guide Cloudflare Pages dans `README.md`
 13. ✅ Modifier un souvenir (`editEntry`) : correction + tombstone, l'ancienne version quitte le fichier, les réponses suivent. Seul l'auteur modifie. En modération, une modification = une seule carte
-14. ⏭️ Questions guidées (phase 3)
+14. ✅ Questions guidées (`prompts.js`, composant `PromptIdeas`) : **suggestion, jamais obligation** (choix de l'utilisateur). Fermées par défaut (« 💡 Besoin d'une idée ? »), 10 thèmes, voix « vous » (sa propre vie) ou prénom (un proche, « pour quelqu'un »), questions déjà utilisées exclues, exemple sur le recueil vide. Stockées dans `entry.prompt`, affichées dans l'app et le viewer
 
 ## 🎨 Front
 | Sujet | Règle |
@@ -115,13 +115,14 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 | `app/src/lib/rmbr/archive.js` | Création, export `.rmbr` (fflate), lecture + contrôles hors schéma |
 | `app/src/lib/rmbr/timeline.js` | Tri chronologique, masquage tombstones / entrées remplacées |
 | `app/src/lib/rmbr/story.js` | Récit : fils (souvenir + réponses), périodes de la frise, âge. Partagé app + viewer |
+| `app/src/lib/rmbr/prompts.js` | Banque de questions guidées (voix `self` / `other`, jamais de pronom genré) et tirage |
 | `app/src/lib/rmbr/merge.js` | Examen d'un pack (règles 1-8) et fusion des entrées acceptées |
 | `app/src/lib/rmbr/owner-key.js` | Clé propriétaire : création, chiffrement par mot de passe (PBKDF2 600 000 + AES-GCM), déverrouillage, changement |
 | `app/src/lib/rmbr/signature.js` | JCS (RFC 8785), keyId (RFC 7638), signature / vérification ES256 |
 | `app/src/lib/rmbr/video.js` | Compression vidéo (ffmpeg.wasm). Mettre à jour `@ffmpeg/core` implique de changer URL + empreintes, un test le vérifie |
 | `app/src/lib/rmbr/video-plan.js` | Budget de débit, arguments ffmpeg/ffprobe (logique pure, testée) |
 | `app/src/routes/` | `/` vitrine, `/creer` création guidée, `/recueil` espace de travail, `/confidentialite`, `+layout` (en-tête, pied, garde avant fermeture) |
-| `app/src/lib/components/` | `EntryForm` (3 étapes), `MemoryCard`, `Moderation`, `Recorder`, `VideoPicker`, `Story`, `Frise`, `RecueilSettings`, `OwnerAccess`, `PasswordField`, `Logo` |
+| `app/src/lib/components/` | `EntryForm` (3 étapes), `MemoryCard`, `Moderation`, `Recorder`, `VideoPicker`, `Story`, `Frise`, `RecueilSettings`, `OwnerAccess`, `PasswordField`, `PromptIdeas`, `Logo` |
 | `app/src/lib/rmbr/viewer.js` | Génère `viewer/index.html` (lecture hors ligne, sans JS) |
 | `app/src/lib/rmbr/image.js` | Compression photo client (WebP ≤ 3 Mo, 2048 px, sans EXIF) |
 | `app/tests/` | Tests `node:test`, valident les fichiers exportés contre `spec/v0` |

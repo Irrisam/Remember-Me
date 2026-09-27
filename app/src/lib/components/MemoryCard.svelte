@@ -22,6 +22,7 @@
 				{#if entry.supersedes}<span class="edited">modifié</span>{/if}
 			</p>
 		{/if}
+		{#if entry.prompt}<p class="prompt"><span class="visually-hidden">Question : </span>« {entry.prompt} »</p>{/if}
 		{#if entry.title}<h3>{entry.title}</h3>{/if}
 		{#if replyTitle}<p class="reply">En réponse à « {replyTitle} »</p>{/if}
 		{#each entry.media ?? [] as item (item.path)}
@@ -87,6 +88,14 @@
 	}
 	.nested h3 {
 		font-size: 1.15rem;
+	}
+	.prompt {
+		margin: 0 0 8px;
+		padding-left: 12px;
+		border-left: 2px solid var(--accent);
+		color: var(--ink-soft);
+		font-style: italic;
+		max-width: 70ch;
 	}
 	.reply {
 		color: var(--ink-faint);
