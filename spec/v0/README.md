@@ -1,4 +1,4 @@
-# 📦 Format Remember Me — spec v0.2
+# 📦 Format Remember Me — spec v0.3
 
 > ⚠️ v0 = instable. Tout peut changer avant la v1 ; aucune compatibilité garantie.
 
@@ -56,6 +56,7 @@ Supprimer un souvenir = ajouter une entrée `type: "tombstone"` qui vise l'origi
 | Ce qui reste | Seul le tombstone : un `id`, un auteur, une date, aucun contenu |
 | À la fusion | Une entrée visée par un tombstone n'est jamais réintégrée, même si un vieux pack la contient encore |
 | Correction ≠ suppression | Une correction garde l'ancienne version dans l'archive (historique). Un tombstone l'efface |
+| « Modifier » dans l'app | Correction **plus** tombstone de l'ancienne version, par le même auteur : l'ancienne version et les médias retirés quittent le fichier à l'export. Les réponses (`replyTo`) vers l'ancienne version suivent la correction. Seul l'auteur modifie son souvenir |
 
 ## 📏 Limites de taille (dans le schéma)
 | Type | Taille max | Autres limites |
@@ -76,6 +77,21 @@ Ce sont des plafonds par fichier. La taille totale d'un recueil n'est pas limit�
 | Format | `signature.value` = r‖s (64 octets) en base64url sans padding |
 | Confiance | Au premier contact (TOFU) : la clé du créateur est retenue à la première ouverture du recueil. Le créateur accepte la clé d'un contributeur en validant sa première contribution |
 | Exemple réel | `examples/valid/entry.audio-signee.json`, signée par la clé de Jeanne dans `manifest.recueil.json` |
+
+## 🔒 Accès propriétaire par mot de passe (v0.3, facultatif)
+Le contenu reste lisible par tous : c'est un cadeau. Le mot de passe ne protège que le **rôle de propriétaire** (créateur) : fusionner, supprimer, modifier le recueil.
+
+| Élément | Choix |
+|---|---|
+| Clé | Paire ES256 propre au créateur. Clé publique dans `authors[creatorId].publicKey` |
+| Clé privée | Dans `manifest.ownerKey`, au format PKCS#8, chiffrée en AES-GCM-256 avec une clé dérivée du mot de passe par PBKDF2-SHA256 (≥ 100 000 itérations ; l'app en utilise 600 000). Mot de passe normalisé en NFC |
+| Champs | `kdf`, `iterations`, `salt` (16 octets), `cipher`, `iv` (12 octets), `data` (base64), `hint` facultatif en clair |
+| Signature | Toute entrée du créateur (souvenirs, corrections, tombstones) est signée. À la protection d'un recueil existant, ses entrées déjà présentes sont signées |
+| Vérification | À l'ouverture : une entrée du créateur sans signature valide est signalée « non authentifiée ». `ownerKey` présent sans `publicKey` du créateur : recueil refusé |
+| Contribution | Un pack `.rmbrc` ne peut pas contenir `ownerKey` |
+| Oubli | Aucune récupération possible. Le recueil reste lisible ; on peut encore y contribuer comme un proche |
+| Changement | Nouveau mot de passe = même clé rechiffrée : les signatures existantes restent valides |
+| Limite | Le manifest n'est pas signé : quelqu'un peut retirer `ownerKey` et la clé publique à la main. L'app retient localement la clé du propriétaire de chaque recueil déjà ouvert et prévient si elle change ou disparaît |
 
 ## 🔀 Règles de fusion (`.rmbrc` → `.rmbr`)
 | # | Règle |

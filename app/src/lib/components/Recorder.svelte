@@ -94,39 +94,31 @@
 <div class="recorder">
 	{#if recording}
 		<p class="live"><span class="dot"></span> Enregistrement… {clock(elapsed)} <span class="hint">/ 30:00</span></p>
-		<button type="button" class="stop" onclick={stop}>■ Arrêter</button>
+		<button type="button" class="btn btn-sm stop" onclick={stop}>■ Arrêter</button>
 	{:else if value}
 		<audio controls src={previewUrl}></audio>
 		<p class="hint">{clock(value.durationSec)} enregistrées</p>
-		<div class="actions">
-			<button type="button" class="secondary" onclick={start}>Recommencer</button>
-			<button type="button" class="secondary" onclick={() => (value = null)}>Retirer</button>
+		<div class="btn-row">
+			<button type="button" class="btn btn-secondary btn-sm" onclick={start}>Recommencer</button>
+			<button type="button" class="btn btn-ghost btn-sm" onclick={() => (value = null)}>Retirer</button>
 		</div>
 	{:else}
-		<button type="button" class="secondary" onclick={start}>🎙️ Enregistrer ma voix</button>
-		<p class="hint">Jusqu'à 30 minutes.</p>
+		<button type="button" class="btn btn-secondary btn-sm" onclick={start}>Enregistrer ma voix</button>
+		<p class="hint">Jusqu'à 30 minutes. Le navigateur vous demandera l'accès au micro.</p>
 	{/if}
-	{#if error}<p class="error" role="alert">{error}</p>{/if}
+	{#if error}<p class="msg msg-error" role="alert">{error}</p>{/if}
 </div>
 
 <style>
 	.recorder { display: grid; gap: 8px; justify-items: start; }
-	.live { display: flex; align-items: center; gap: 8px; margin: 0; font-weight: 600; }
-	.dot { width: 12px; height: 12px; border-radius: 50%; background: #b3261e; animation: pulse 1.2s infinite; }
+	.live { display: flex; align-items: center; gap: 10px; margin: 0; font-weight: 600; }
+	.dot { width: 12px; height: 12px; border-radius: 50%; background: var(--danger); }
+	@media (prefers-reduced-motion: no-preference) {
+		.dot { animation: pulse 1.2s infinite; }
+	}
 	@keyframes pulse { 50% { opacity: 0.3; } }
 	audio { width: 100%; }
-	.actions { display: flex; gap: 12px; flex-wrap: wrap; }
-	.hint { margin: 0; font-weight: 400; color: #8a8076; font-size: 0.9rem; }
-	.error { margin: 0; color: #9b2c2c; font-weight: 600; }
-	button {
-		font: inherit;
-		font-weight: 600;
-		padding: 12px 20px;
-		border: 0;
-		border-radius: 8px;
-		background: #e6dfd5;
-		color: #2b2724;
-		cursor: pointer;
-	}
-	button.stop { background: #b3261e; color: #fff; }
+	.hint { margin: 0; }
+	.stop { background: var(--danger); }
+	.stop:hover { background: #7a2121; }
 </style>

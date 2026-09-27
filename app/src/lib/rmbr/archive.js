@@ -1,9 +1,11 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import { uuidv7, now, sha256Hex } from './ids.js';
 import { renderViewer } from './viewer.js';
-import { overrides } from './timeline.js';
+import { overrides, PARTIAL_DATE } from './timeline.js';
+import { signEntry, verifyEntry } from './signature.js';
+import { createOwnerKey, rewrapOwnerKey } from './owner-key.js';
 
-export const FORMAT_VERSION = '0.2';
+export const FORMAT_VERSION = '0.3';
 /** Seuil habituel des pièces jointes mail : au-delà, l'app prévient. */
 export const MAIL_LIMIT = 25 * 1024 * 1024;
 
@@ -55,6 +57,34 @@ export function createRecueil({ title, subjectName, subjectBirthDate, creatorNam
 }
 
 /**
+ * Modifie les infos du recueil (réservé au créateur). Renvoie un nouveau recueil.
+ * Sans nom de personne, le bloc subject disparaît (le schéma exige un nom).
+ * @param {Recueil} recueil
+ * @param {{ title: string, subjectName?: string, subjectBirthDate?: string, creatorName: string }} info
+ * @returns {Recueil}
+ */
+export function editRecueil(recueil, { title, subjectName, subjectBirthDate, creatorName }) {
+	if (!title) throw new Error('Le recueil doit avoir un titre.');
+	if (!creatorName) throw new Error('Indiquez votre prénom.');
+	if (subjectBirthDate && !PARTIAL_DATE.test(subjectBirthDate)) {
+		throw new Error('La date de naissance doit être une année (1941), un mois (1941-03) ou un jour (1941-03-12).');
+	}
+	const { subject: previous, ...rest } = recueil.manifest;
+	const manifest = {
+		...rest,
+		title,
+		authors: rest.authors.map((a) => (a.id === rest.creatorId ? { ...a, name: creatorName } : a)),
+		updatedAt: now()
+	};
+	if (subjectName) {
+		manifest.subject = { ...previous, name: subjectName };
+		if (subjectBirthDate) manifest.subject.birthDate = subjectBirthDate;
+		else delete manifest.subject.birthDate;
+	}
+	return { ...recueil, manifest };
+}
+
+/**
  * Pack de contribution vide pour un recueil. Un pack ne contient que son auteur, jamais le créateur.
  * @param {Recueil} recueil
  * @param {{ id: string, name: string, relation?: string }} author
@@ -84,22 +114,31 @@ export function createPack(recueil, author) {
 
 /**
  * Ajoute un souvenir (au recueil ou au pack). Les champs vides sont omis pour rester conforme au schéma.
+ * Avec un signer (propriétaire déverrouillé), l'entrée est signée.
+ * Un média `{ keep, bytes }` reprend tel quel un média existant (même chemin, pas de doublon).
  * @param {Recueil} target
  * @param {{ type: string, authorId: string, title?: string, text?: string, date?: any,
- *   replyTo?: string, supersedes?: string,
- *   media?: { bytes: Uint8Array, mimeType: string, width?: number, height?: number,
- *     durationSec?: number, caption?: string }[] }} input
+ *   replyTo?: string, supersedes?: string, prompt?: string,
+ *   media?: ({ bytes: Uint8Array, mimeType: string, width?: number, height?: number,
+ *     durationSec?: number, caption?: string } | { keep: any, bytes: Uint8Array })[] }} input
+ * @param {import('./owner-key.js').Signer} [signer]
  */
-export async function addEntry(target, { type, authorId, title, text, date, replyTo, supersedes, media = [] }) {
-	const entry = { id: uuidv7(), type, authorId, createdAt: now() };
+export async function addEntry(target, { type, authorId, title, text, date, replyTo, supersedes, prompt, media = [] }, signer) {
+	let entry = { id: uuidv7(), type, authorId, createdAt: now() };
 	if (title) entry.title = title;
 	if (text) entry.text = text;
 	if (date) entry.date = date;
 	if (replyTo) entry.replyTo = replyTo;
 	if (supersedes) entry.supersedes = supersedes;
+	if (prompt) entry.prompt = prompt;
 	if (media.length) {
 		entry.media = [];
 		for (const m of media) {
+			if (m.keep) {
+				entry.media.push(m.keep);
+				if (!target.media.has(m.keep.path)) target.media.set(m.keep.path, m.bytes);
+				continue;
+			}
 			const path = `media/${uuidv7()}.${EXT[m.mimeType]}`;
 			const item = { path, mimeType: m.mimeType, size: m.bytes.length, sha256: await sha256Hex(m.bytes) };
 			if (m.width) item.width = m.width;
@@ -110,15 +149,82 @@ export async function addEntry(target, { type, authorId, title, text, date, repl
 			target.media.set(path, m.bytes);
 		}
 	}
+	if (signer) entry = await signEntry(entry, signer.privateKey, signer.keyId);
 	target.entries.set(entry.id, entry);
 	target.manifest.entries.push(indexRef(entry));
 	target.manifest.updatedAt = entry.createdAt;
 	return entry;
 }
 
-/** Supprime un souvenir : entrée vide (tombstone) qui le vise. */
-export function deleteEntry(target, entryId, authorId) {
-	return addEntry(target, { type: 'tombstone', authorId, supersedes: entryId });
+/** Supprime un souvenir : entrée vide (tombstone) qui le vise, signée si le propriétaire est déverrouillé. */
+export function deleteEntry(target, entryId, authorId, signer) {
+	return addEntry(target, { type: 'tombstone', authorId, supersedes: entryId }, signer);
+}
+
+/**
+ * Modifie un souvenir, en le remplaçant vraiment : une correction qui le vise (supersedes, les réponses
+ * suivent) plus un tombstone, pour qu'à l'export l'ancienne version et ses médias retirés quittent le fichier.
+ * L'auteur reste celui d'origine : on ne modifie que ses propres souvenirs.
+ * @param {Recueil} target recueil (créateur) ou pack (proche)
+ * @param {any} original
+ * @param {any} input comme addEntry, sans authorId
+ * @param {import('./owner-key.js').Signer} [signer]
+ */
+export async function editEntry(target, original, input, signer) {
+	const entry = await addEntry(
+		target,
+		{
+			...input,
+			authorId: original.authorId,
+			supersedes: original.id,
+			replyTo: original.replyTo,
+			prompt: original.prompt
+		},
+		signer
+	);
+	await deleteEntry(target, original.id, original.authorId, signer);
+	return entry;
+}
+
+/**
+ * Protège l'accès propriétaire par un mot de passe : crée la clé, la range chiffrée dans le manifest,
+ * publie la clé publique du créateur et signe tous ses souvenirs existants.
+ * @param {Recueil} recueil
+ * @param {string} password
+ * @param {{ hint?: string, iterations?: number }} [opts]
+ * @returns {Promise<{ recueil: Recueil, signer: import('./owner-key.js').Signer }>}
+ */
+export async function protectRecueil(recueil, password, opts = {}) {
+	if (recueil.manifest.ownerKey) throw new Error('Ce recueil est déjà protégé par un mot de passe.');
+	checkPassword(password);
+	const { publicKey, ownerKey, signer } = await createOwnerKey(password, opts);
+	const { creatorId } = recueil.manifest;
+	const entries = new Map();
+	for (const [id, entry] of recueil.entries) {
+		entries.set(id, entry.authorId === creatorId ? await signEntry(entry, signer.privateKey, signer.keyId) : entry);
+	}
+	const manifest = {
+		...recueil.manifest,
+		authors: recueil.manifest.authors.map((a) => (a.id === creatorId ? { ...a, publicKey } : a)),
+		ownerKey,
+		updatedAt: now()
+	};
+	return { recueil: { ...recueil, manifest, entries }, signer };
+}
+
+/** Change le mot de passe (et l'indice) sans changer la clé : les signatures restent valides. */
+export async function changeOwnerPassword(recueil, oldPassword, newPassword, { hint } = {}) {
+	checkPassword(newPassword);
+	const ownerKey = await rewrapOwnerKey(recueil.manifest.ownerKey, oldPassword, newPassword, { hint });
+	return { ...recueil, manifest: { ...recueil.manifest, ownerKey, updatedAt: now() } };
+}
+
+export const MIN_PASSWORD = 8;
+
+function checkPassword(password) {
+	if (!password || password.length < MIN_PASSWORD) {
+		throw new Error(`Le mot de passe doit contenir au moins ${MIN_PASSWORD} caractères.`);
+	}
 }
 
 /** Copie légère d'une entrée pour l'index du manifest. */
@@ -183,6 +289,19 @@ export async function readRmbr(bytes) {
 	const { archive, warnings } = await openArchive(bytes, 'recueil');
 	const creator = archive.manifest.authors?.find((a) => a.id === archive.manifest.creatorId);
 	if (!creator || creator.role !== 'creator') throw new Error('Le créateur du recueil est introuvable.');
+	if (archive.manifest.ownerKey && !creator.publicKey) {
+		throw new Error('Ce recueil est protégé mais sa clé publique a disparu : le fichier a été abîmé ou modifié.');
+	}
+	// Recueil protégé : chaque souvenir du propriétaire doit porter sa signature.
+	if (creator.publicKey) {
+		for (const entry of archive.entries.values()) {
+			if (entry.authorId === creator.id && !(await verifyEntry(entry, creator.publicKey))) {
+				warnings.push(
+					`« ${entry.title ?? (entry.type === 'tombstone' ? 'une suppression' : 'un souvenir')} » n’est pas authentifié : il n’a pas été ajouté avec le mot de passe de ${creator.name}.`
+				);
+			}
+		}
+	}
 	return { recueil: archive, warnings };
 }
 

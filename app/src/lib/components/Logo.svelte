@@ -1,0 +1,11 @@
+<script>
+	/** Marque : une bougie, discrète. Le texte est lu par les lecteurs d'écran via le lien parent. */
+	let { size = 36 } = $props();
+</script>
+
+<svg width={size} height={size} viewBox="0 0 32 32" aria-hidden="true">
+	<rect width="32" height="32" rx="8" fill="#a0522d" />
+	<path d="M16 5.5c2.6 3.3 3.9 5.8 3.9 7.9a3.9 3.9 0 0 1-7.8 0c0-2.1 1.3-4.6 3.9-7.9z" fill="#f3c969" />
+	<path d="M16 10.5c1 1.4 1.5 2.4 1.5 3.2a1.5 1.5 0 0 1-3 0c0-.8.5-1.8 1.5-3.2z" fill="#fff4d6" />
+	<rect x="12.5" y="18" width="7" height="9.5" rx="1.6" fill="#f6f1e9" />
+</svg>

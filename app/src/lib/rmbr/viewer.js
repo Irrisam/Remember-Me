@@ -54,42 +54,50 @@ ${replies.map((r) => `<div class="reply"><p class="added">${author(r)} a complé
 <meta name="generator" content="Remember Me — format ${esc(manifest.formatVersion)}">
 <title>${esc(manifest.title)}</title>
 <style>
+/* Mêmes couleurs que l'app (src/app.css). Polices système : le fichier reste léger et autonome. */
+* { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: #f7f4ef; color: #2b2724; font: 18px/1.6 Georgia, 'Times New Roman', serif; }
-main { max-width: 680px; margin: 0 auto; padding: 24px 16px 64px; }
-h1 { font-size: 2rem; margin: 0 0 4px; }
-.subject { color: #6b625a; margin-top: 0; }
-article { background: #fff; border: 1px solid #e6dfd5; border-radius: 12px; padding: 20px; margin: 16px 0; }
-section { scroll-margin-top: 96px; }
-h2 { margin: 32px 0 0; color: #6b625a; font-size: 1.3rem; }
-h3 { margin: 4px 0 12px; }
-.date { color: #8a6d4f; margin: 0; font-style: italic; }
-.age { font-style: normal; color: #6b625a; }
-.text { white-space: pre-wrap; }
-.by, figcaption, footer { color: #8a8076; font-size: 0.9rem; }
-.reply { border-left: 3px solid #d9c7ad; padding: 4px 0 4px 16px; margin: 20px 0 0; }
-.reply h3 { font-size: 1.05rem; }
-.added { margin: 0 0 4px; color: #8a6d4f; font-size: 0.9rem; font-weight: 600; }
-figure { margin: 0 0 12px; }
-img, video { max-width: 100%; height: auto; border-radius: 8px; }
+body { margin: 0; background: #f6f1e9; color: #2b2420; font: 19px/1.65 Georgia, 'Times New Roman', serif; }
+main { max-width: 720px; margin: 0 auto; padding: 32px clamp(16px, 4vw, 32px) 64px; }
+.eyebrow { font-size: 0.85rem; font-weight: bold; letter-spacing: 0.08em; text-transform: uppercase; color: #a0522d; margin: 0 0 8px; }
+h1 { font-size: clamp(2rem, 5vw, 2.9rem); line-height: 1.2; margin: 0 0 6px; }
+.subject { color: #5e544b; margin: 0; font-size: 1.2rem; }
+article { background: #fffdf9; border: 1px solid #e3d8c8; border-radius: 14px; box-shadow: 0 1px 2px rgb(60 40 20 / 0.05), 0 8px 24px rgb(60 40 20 / 0.06); padding: clamp(20px, 4vw, 28px); margin: 20px 0; }
+section { scroll-margin-top: 100px; margin-top: 40px; }
+h2 { display: flex; align-items: center; gap: 16px; margin: 0; color: #5e544b; font-size: 1.35rem; }
+h2::after { content: ''; flex: 1; height: 1px; background: #e3d8c8; }
+h3 { margin: 0 0 14px; font-size: 1.45rem; line-height: 1.25; }
+.date { display: flex; flex-wrap: wrap; gap: 4px 14px; color: #a0522d; margin: 0 0 6px; font-style: italic; }
+.age { font-style: normal; color: #6f655b; }
+.text { white-space: pre-wrap; margin: 0 0 12px; }
+.by, figcaption, footer { color: #6f655b; font-size: 0.95rem; }
+.by { margin: 8px 0 0; padding-top: 12px; border-top: 1px solid #e3d8c8; }
+.reply { border-left: 3px solid #cbbba5; padding: 2px 0 2px 18px; margin: 24px 0 0; }
+.reply h3 { font-size: 1.15rem; }
+.added { margin: 0 0 6px; color: #a0522d; font-size: 0.95rem; font-weight: bold; }
+figure { margin: 4px 0 16px; }
+figcaption { margin-top: 6px; font-style: italic; }
+img, video { display: block; max-width: 100%; height: auto; border-radius: 10px; }
 audio { width: 100%; }
-footer { margin-top: 48px; text-align: center; }
-.frise { position: sticky; top: 0; z-index: 1; background: #f7f4ef; margin: 16px -16px 0; padding: 8px 16px 4px; border-bottom: 1px solid #e6dfd5; overflow-x: auto; }
-.frise ol { list-style: none; display: flex; margin: 0; padding: 0; min-width: max-content; background: linear-gradient(#cfc6ba, #cfc6ba) no-repeat 0 17px / 100% 2px; }
-.frise li { flex: 1 0 64px; display: grid; justify-items: center; }
-.frise a, .frise .stop { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: inherit; padding: 4px 6px; }
-.frise .dot { width: var(--size); height: var(--size); margin: calc((28px - var(--size)) / 2) 0; border-radius: 50%; background: #8a6d4f; box-shadow: 0 0 0 3px #f7f4ef; }
-.frise a:hover .dot, .frise a:focus-visible .dot { background: #5b4636; }
-.frise .empty .dot { background: #f7f4ef; border: 2px solid #cfc6ba; box-sizing: border-box; }
-.frise .year { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-.frise .empty .year { color: #b3a898; font-weight: 400; }
-.frise .undated { border-left: 1px dashed #cfc6ba; }
-.frise .undated .dot { background: #b3a898; }
-.frise .birth { font-size: 0.75rem; color: #8a6d4f; font-style: italic; margin-top: -4px; }
+footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid #e3d8c8; text-align: center; }
+.frise { position: sticky; top: 0; z-index: 1; background: #f6f1e9; margin: 24px calc(-1 * clamp(16px, 4vw, 32px)) 0; padding: 10px clamp(16px, 4vw, 32px) 6px; border-bottom: 1px solid #e3d8c8; overflow-x: auto; }
+.frise ol { list-style: none; display: flex; margin: 0; padding: 0; min-width: max-content; background: linear-gradient(#cbbba5, #cbbba5) no-repeat 0 19px / 100% 2px; }
+.frise li { flex: 1 0 68px; display: grid; justify-items: center; }
+.frise a, .frise .stop { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: #2b2420; padding: 4px 8px; border-radius: 10px; }
+.frise a:hover { background: #f3e3d6; }
+.frise .dot { width: var(--size); height: var(--size); margin: calc((28px - var(--size)) / 2) 0; border-radius: 50%; background: #a0522d; box-shadow: 0 0 0 4px #f6f1e9; }
+.frise a:hover .dot, .frise a:focus-visible .dot { background: #7e3f22; }
+.frise .empty .dot { background: #f6f1e9; border: 2px solid #cbbba5; }
+.frise .year { font-size: 0.88rem; font-weight: bold; white-space: nowrap; }
+.frise .empty .year { color: #6f655b; font-weight: normal; }
+.frise .undated { border-left: 1px dashed #cbbba5; }
+.frise .undated .dot { background: #6f655b; }
+.frise .birth { font-size: 0.78rem; color: #a0522d; font-style: italic; margin-top: -4px; }
 </style>
 </head>
 <body>
 <main>
+<p class="eyebrow">Recueil de souvenirs</p>
 <h1>${esc(manifest.title)}</h1>
 ${subject ? `<p class="subject">${esc(subject.name)}</p>` : ''}
 ${frise(s)}

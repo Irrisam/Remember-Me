@@ -79,12 +79,33 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 6. ✅ Vidéo compressée : ffmpeg.wasm chargé à la demande depuis jsDelivr (version figée, SHA-256 vérifié), MP4 H.264/AAC 720p, débit calculé pour rester < 20 Mo, ≤ 3 min. Environ 2,5× la durée de la vidéo pour la compresser (mono-thread)
 
 7. ✅ Visualisation : frise par décennie (par année si < 10 ans, depuis la naissance si connue), récit par périodes, réponses sous leur souvenir, âge de la personne. Identique dans l'app et le viewer (sans JS, frise en liens d'ancre). Logique commune dans `story.js`
+8. ✅ « Modifier le recueil » (créateur) : titre, personne, date de naissance, prénom du créateur (`editRecueil`, composant `RecueilSettings`)
+9. ✅ Front « Album chaleureux » : design system (`app/src/app.css`), pages `/` vitrine, `/creer` création guidée, `/recueil`, `/confidentialite`, souvenir en 3 étapes, PWA installable et hors ligne
+10. ✅ Formulaire de souvenir élargi : espace de travail 1040 px, étapes en colonne à gauche sur grand écran, aperçu de la date et de l'âge, tuiles médias
+11. ✅ Accès propriétaire par mot de passe (spec v0.3) : **facultatif mais conseillé**, **indice seulement** en cas d'oubli (choix de l'utilisateur). Clé ES256 chiffrée dans `manifest.ownerKey`, actions du propriétaire signées, alerte locale si la clé change
+12. ✅ Prêt à déployer : tests navigateur `app/e2e/` (Playwright, `npm run e2e`), CI GitHub Actions, CSP par empreintes, `static/_headers`, guide Cloudflare Pages dans `README.md`
+13. ✅ Modifier un souvenir (`editEntry`) : correction + tombstone, l'ancienne version quitte le fichier, les réponses suivent. Seul l'auteur modifie. En modération, une modification = une seule carte
+14. ⏭️ Questions guidées (phase 3)
 
-## 📝 Front à fignoler (plus tard)
+## 🎨 Front
+| Sujet | Règle |
+|---|---|
+| Style | « Album chaleureux » : papier `#f6f1e9`, accent terre cuite `#a0522d`, titres Fraunces, texte Source Serif 4 (19 px) |
+| Polices | Auto-hébergées (`@fontsource-variable`), jamais de Google Fonts : confidentialité + hors ligne |
+| Composants | Classes globales `.btn` (`-secondary`, `-ghost`, `-sm`, `-lg`), `.card`, `.panel`, `.field`, `.input`, `.msg-*`, `.hint`, `.eyebrow`. Pas de styles de bouton dans les composants |
+| Accessibilité | Contraste AA, cibles ≥ 44 px, focus visible, `prefers-reduced-motion` respecté |
+| Textes | Pas d'accord genré deviné depuis un prénom (« vous avez créé ce recueil », « naissance : … ») |
+| État | Recueil ouvert dans `lib/session.svelte.js`, partagé entre pages, jamais persisté |
+| PWA | `static/manifest.webmanifest`, icônes PNG générées depuis le logo, `src/service-worker.js` (app en cache, souvenirs jamais) |
+| Viewer | Mêmes couleurs, polices système (fichier léger) |
+
+## 📝 Avant la mise en ligne
 | Sujet | Idée |
 |---|---|
+| Mentions légales | Éditeur, hébergeur, contact : obligatoires en France, non rédigées (aucune info inventée) |
+| Hébergement | L'hôte doit servir `creer.html` sur `/creer` (Cloudflare Pages et GitHub Pages le font) |
 | Identité | Un proche se reconnaît dans la liste des auteurs, sans preuve tant qu'il n'a pas de clé : à durcir avec la signature |
-| Maquettes | Les 3 écrans de la phase 0 n'ont jamais été faits |
+| Ouvrir un .rmbr depuis l'OS | `file_handlers` du manifeste + `launchQueue`, pour la PWA installée |
 | Vitesse vidéo | ≈ 7 min pour 3 min de vidéo. Pistes : ffmpeg multi-thread (en-têtes COOP/COEP, impossible sur GitHub Pages) ou WebCodecs (encodage matériel) |
 | Sous-titres vidéo | Brancher `media.transcript` sur une piste `<track>` |
 
@@ -95,10 +116,12 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 | `app/src/lib/rmbr/timeline.js` | Tri chronologique, masquage tombstones / entrées remplacées |
 | `app/src/lib/rmbr/story.js` | Récit : fils (souvenir + réponses), périodes de la frise, âge. Partagé app + viewer |
 | `app/src/lib/rmbr/merge.js` | Examen d'un pack (règles 1-8) et fusion des entrées acceptées |
+| `app/src/lib/rmbr/owner-key.js` | Clé propriétaire : création, chiffrement par mot de passe (PBKDF2 600 000 + AES-GCM), déverrouillage, changement |
 | `app/src/lib/rmbr/signature.js` | JCS (RFC 8785), keyId (RFC 7638), signature / vérification ES256 |
 | `app/src/lib/rmbr/video.js` | Compression vidéo (ffmpeg.wasm). Mettre à jour `@ffmpeg/core` implique de changer URL + empreintes, un test le vérifie |
 | `app/src/lib/rmbr/video-plan.js` | Budget de débit, arguments ffmpeg/ffprobe (logique pure, testée) |
-| `app/src/lib/components/` | `EntryForm`, `MemoryCard`, `Moderation`, `Recorder`, `VideoPicker`, `Story`, `Frise` |
+| `app/src/routes/` | `/` vitrine, `/creer` création guidée, `/recueil` espace de travail, `/confidentialite`, `+layout` (en-tête, pied, garde avant fermeture) |
+| `app/src/lib/components/` | `EntryForm` (3 étapes), `MemoryCard`, `Moderation`, `Recorder`, `VideoPicker`, `Story`, `Frise`, `RecueilSettings`, `OwnerAccess`, `PasswordField`, `Logo` |
 | `app/src/lib/rmbr/viewer.js` | Génère `viewer/index.html` (lecture hors ligne, sans JS) |
 | `app/src/lib/rmbr/image.js` | Compression photo client (WebP ≤ 3 Mo, 2048 px, sans EXIF) |
 | `app/tests/` | Tests `node:test`, valident les fichiers exportés contre `spec/v0` |
@@ -109,7 +132,8 @@ Créateur ──fusionne──▶ souvenir.rmbr v2 ──renvoie──▶ tous
 | Node / Python | Environnement isolé dans `%LOCALAPPDATA%\RememberMe\env`, doc dans `tools/env/README.md` |
 | Activer | `. tools\env\activate.ps1` (installer : `tools\env\setup.ps1`) |
 | Dossier protégé | L'Accès contrôlé aux dossiers de Windows Defender protège `Documents`. `node.exe` de l'env et git y sont autorisés : `npm` et `git` fonctionnent. `bash` et `powershell` ne peuvent toujours pas écrire directement |
-| Commandes | Dans `app/` : `npm test`, `npm run build`, `npx vite preview --port 4173` |
+| Commandes | Dans `app/` : `npm test`, `npm run e2e` (Edge en local, Chrome en CI pour le H.264), `npm run build`, `npx vite preview --port 4173` |
+| CSP | Toute nouvelle origine réseau (CDN, API) doit être ajoutée dans `svelte.config.js` › `kit.csp`, sinon le navigateur la bloque |
 
 ## 🗣️ Conventions de travail
 - Échanges en français, direct et concis

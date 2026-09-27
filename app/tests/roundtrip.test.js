@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
-import { createRecueil, addEntry, exportRmbr, readRmbr } from '../src/lib/rmbr/archive.js';
+import { createRecueil, editRecueil, addEntry, exportRmbr, readRmbr } from '../src/lib/rmbr/archive.js';
 import { timeline, formatDate } from '../src/lib/rmbr/timeline.js';
 import { validManifest, validEntry } from './schema.js';
 
@@ -59,6 +59,27 @@ test('souvenir audio : conforme au schéma, relu à l’identique, lecteur dans 
 	assert.deepEqual(recueil.entries.get(entry.id), entry);
 	const html = strFromU8(unzipSync(bytes)['viewer/index.html']);
 	assert.ok(html.includes(`<audio controls preload="none" src="../${entry.media[0].path}">`));
+});
+
+test('modifier le recueil : titre, personne, naissance, prénom du créateur', async () => {
+	const r = await sample();
+	const edited = editRecueil(r, { title: 'Mamie', subjectName: 'Jeanne M.', subjectBirthDate: '1941-03', creatorName: 'Jeannette' });
+	assert.equal(edited.manifest.title, 'Mamie');
+	assert.deepEqual(edited.manifest.subject, { name: 'Jeanne M.', birthDate: '1941-03' });
+	assert.equal(edited.manifest.authors[0].name, 'Jeannette');
+	assert.ok(validManifest(edited.manifest), JSON.stringify(validManifest.errors));
+	assert.equal(r.manifest.title, 'Les souvenirs de Mamie Jeanne', 'l’original n’est pas modifié');
+
+	const noBirth = editRecueil(edited, { title: 'Mamie', subjectName: 'Jeanne M.', creatorName: 'Jeannette' });
+	assert.deepEqual(noBirth.manifest.subject, { name: 'Jeanne M.' });
+	const noSubject = editRecueil(edited, { title: 'Mamie', subjectBirthDate: '1941', creatorName: 'Jeannette' });
+	assert.equal(noSubject.manifest.subject, undefined);
+	assert.ok(validManifest(noSubject.manifest), JSON.stringify(validManifest.errors));
+
+	assert.throws(() => editRecueil(r, { title: '', creatorName: 'J' }), /titre/);
+	assert.throws(() => editRecueil(r, { title: 'T', creatorName: 'J', subjectName: 'X', subjectBirthDate: '41' }), /naissance/);
+	const { recueil: back } = await readRmbr(exportRmbr(edited));
+	assert.deepEqual(back.manifest, edited.manifest);
 });
 
 test('ordre chronologique : date partielle en tête de sa période, sans date à la fin', async () => {

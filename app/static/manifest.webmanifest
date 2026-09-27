@@ -1,0 +1,16 @@
+{
+	"name": "Remember Me",
+	"short_name": "Remember Me",
+	"description": "Rassemblez vos souvenirs dans un fichier à offrir à vos proches. Sans compte, sans serveur.",
+	"lang": "fr",
+	"start_url": "/",
+	"scope": "/",
+	"display": "standalone",
+	"background_color": "#f6f1e9",
+	"theme_color": "#f6f1e9",
+	"icons": [
+		{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+		{ "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+		{ "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+	]
+}

@@ -66,44 +66,26 @@
 		</p>
 		<progress max="1" value={stage === 'load' ? undefined : ratio}></progress>
 		<p class="hint">Vous pouvez continuer à écrire pendant ce temps.</p>
-		<button type="button" class="secondary" onclick={() => controller?.abort()}>Annuler</button>
+		<button type="button" class="btn btn-secondary btn-sm" onclick={() => controller?.abort()}>Annuler</button>
 	{:else if value}
 		<!-- Aperçu de sa propre vidéo : pas de sous-titres à ce stade. -->
 		<!-- svelte-ignore a11y_media_has_caption -->
 		<video controls src={previewUrl} width={value.width} height={value.height}></video>
 		<p class="hint">{clock(value.durationSec)} · {(value.bytes.length / 1024 / 1024).toFixed(1)} Mo</p>
-		<button type="button" class="secondary" onclick={() => (value = null)}>Retirer la vidéo</button>
+		<button type="button" class="btn btn-ghost btn-sm" onclick={() => (value = null)}>Retirer la vidéo</button>
 	{/if}
-	<input bind:this={input} type="file" accept="video/*" onchange={pick} hidden={busy || !!value} />
-	{#if !busy && !value}<p class="hint">3 minutes maximum.</p>{/if}
-	{#if error}<p class="error" role="alert">{error}</p>{/if}
+	<label class="btn btn-secondary btn-sm" hidden={busy || !!value}>
+		Choisir une vidéo
+		<input class="visually-hidden" bind:this={input} type="file" accept="video/*" onchange={pick} />
+	</label>
+	{#if !busy && !value}<p class="hint">3 minutes maximum. Elle sera allégée pour tenir dans le recueil.</p>{/if}
+	{#if error}<p class="msg msg-error" role="alert">{error}</p>{/if}
 </div>
 
 <style>
 	.picker { display: grid; gap: 8px; justify-items: start; }
 	.status { margin: 0; font-weight: 600; }
-	progress { width: 100%; height: 12px; accent-color: #5b4636; }
-	video { max-width: 100%; height: auto; border-radius: 8px; }
-	input {
-		font: inherit;
-		font-weight: 400;
-		padding: 10px 12px;
-		border: 1px solid #cfc6ba;
-		border-radius: 8px;
-		background: #fffdfa;
-		width: 100%;
-		box-sizing: border-box;
-	}
-	.hint { margin: 0; font-weight: 400; color: #8a8076; font-size: 0.9rem; }
-	.error { margin: 0; color: #9b2c2c; font-weight: 600; }
-	button {
-		font: inherit;
-		font-weight: 600;
-		padding: 12px 20px;
-		border: 0;
-		border-radius: 8px;
-		background: #e6dfd5;
-		color: #2b2724;
-		cursor: pointer;
-	}
+	progress { width: 100%; height: 12px; accent-color: var(--accent); }
+	video { max-width: 100%; height: auto; border-radius: var(--radius-sm); }
+	.hint { margin: 0; }
 </style>

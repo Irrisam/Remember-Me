@@ -45,11 +45,12 @@
 	.frise {
 		position: sticky;
 		top: 0;
-		z-index: 1;
-		background: #f7f4ef;
-		margin: 16px -16px 0;
-		padding: 8px 16px 4px;
-		border-bottom: 1px solid #e6dfd5;
+		z-index: 2;
+		background: color-mix(in srgb, var(--paper) 92%, transparent);
+		backdrop-filter: blur(6px);
+		margin: 24px calc(-1 * var(--gutter)) 0;
+		padding: 10px var(--gutter) 6px;
+		border-bottom: 1px solid var(--line);
 		overflow-x: auto;
 	}
 	ol {
@@ -59,23 +60,24 @@
 		padding: 0;
 		min-width: max-content;
 		/* La ligne du temps passe au centre des points. */
-		background: linear-gradient(#cfc6ba, #cfc6ba) no-repeat 0 17px / 100% 2px;
+		background: linear-gradient(var(--line-strong), var(--line-strong)) no-repeat 0 19px / 100% 2px;
 	}
-	li { flex: 1 0 64px; display: grid; justify-items: center; }
-	a, .stop { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: inherit; padding: 4px 6px; }
+	li { flex: 1 0 68px; display: grid; justify-items: center; }
+	a, .stop { display: grid; justify-items: center; gap: 6px; text-decoration: none; color: var(--ink); padding: 4px 8px; border-radius: var(--radius-sm); }
+	a:hover { background: var(--accent-soft); color: var(--ink); }
 	.dot {
 		width: var(--size);
 		height: var(--size);
 		margin: calc((28px - var(--size)) / 2) 0;
 		border-radius: 50%;
-		background: #8a6d4f;
-		box-shadow: 0 0 0 3px #f7f4ef;
+		background: var(--accent);
+		box-shadow: 0 0 0 4px var(--paper);
 	}
-	a:hover .dot, a:focus-visible .dot { background: #5b4636; }
-	.empty .dot { background: #f7f4ef; border: 2px solid #cfc6ba; box-sizing: border-box; }
-	.year { font-size: 0.85rem; font-weight: 600; white-space: nowrap; }
-	.empty .year { color: #b3a898; font-weight: 400; }
-	.undated { border-left: 1px dashed #cfc6ba; }
-	.undated .dot { background: #b3a898; }
-	.birth { font-size: 0.75rem; color: #8a6d4f; font-style: italic; margin-top: -4px; }
+	a:hover .dot, a:focus-visible .dot { background: var(--accent-strong); }
+	.empty .dot { background: var(--paper); border: 2px solid var(--line-strong); }
+	.year { font-size: 0.88rem; font-weight: 600; white-space: nowrap; }
+	.empty .year { color: var(--ink-faint); font-weight: 400; }
+	.undated { border-left: 1px dashed var(--line-strong); }
+	.undated .dot { background: var(--ink-faint); }
+	.birth { font-size: 0.78rem; color: var(--accent); font-style: italic; margin-top: -4px; }
 </style>

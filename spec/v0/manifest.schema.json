@@ -64,6 +64,25 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/entryRef" }
     },
+    "ownerKey": {
+      "type": "object",
+      "description": "Accès propriétaire protégé par mot de passe (v0.3, recueil uniquement). Clé privée ES256 du créateur (PKCS#8), chiffrée. Sa clé publique est authors[creatorId].publicKey. Sans le mot de passe, personne ne peut signer en tant que créateur.",
+      "required": ["kdf", "iterations", "salt", "cipher", "iv", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "kdf": { "const": "PBKDF2-SHA256" },
+        "iterations": { "type": "integer", "minimum": 100000 },
+        "salt": { "type": "string", "contentEncoding": "base64", "minLength": 16 },
+        "cipher": { "const": "AES-GCM-256" },
+        "iv": { "type": "string", "contentEncoding": "base64", "minLength": 16 },
+        "data": { "type": "string", "contentEncoding": "base64", "minLength": 1 },
+        "hint": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Indice laissé par le propriétaire, en clair. Aucune récupération possible en cas d'oubli."
+        }
+      }
+    },
     "encryption": {
       "type": "object",
       "description": "Présent si les entrées et médias sont chiffrés (phase 3). Le manifest reste en clair.",
@@ -80,7 +99,7 @@
   "allOf": [
     {
       "if": { "properties": { "kind": { "const": "contribution" } } },
-      "then": { "required": ["recueilId"] },
+      "then": { "required": ["recueilId"], "not": { "required": ["ownerKey"] } },
       "else": { "required": ["creatorId", "title"], "not": { "required": ["recueilId"] } }
     }
   ],

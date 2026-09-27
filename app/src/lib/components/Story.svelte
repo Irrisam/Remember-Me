@@ -13,29 +13,24 @@
 
 	const author = (e) => names.get(e.authorId) ?? 'auteur inconnu';
 	const age = (e) => (subject ? formatAge(subject.name, ageAt(subject.birthDate, e.date)) : '');
-	const empty = $derived(!story.periods.some((p) => p.threads.length) && !story.undated.length);
 </script>
 
-{#if empty}
-	<p class="hint">Aucun souvenir pour l'instant.</p>
-{:else}
-	<Frise periods={story.periods} undatedCount={story.undated.length} />
-	{#each story.periods.filter((p) => p.threads.length) as period (period.key)}
-		<section id="periode-{period.key}">
-			<h2>{period.label}</h2>
-			{#each period.threads as t (t.entry.id)}
-				{@render thread(t)}
-			{/each}
-		</section>
-	{/each}
-	{#if story.undated.length}
-		<section id="sans-date">
-			<h2>Sans date</h2>
-			{#each story.undated as t (t.entry.id)}
-				{@render thread(t)}
-			{/each}
-		</section>
-	{/if}
+<Frise periods={story.periods} undatedCount={story.undated.length} />
+{#each story.periods.filter((p) => p.threads.length) as period (period.key)}
+	<section id="periode-{period.key}" class="period">
+		<h2>{period.label}</h2>
+		{#each period.threads as t (t.entry.id)}
+			{@render thread(t)}
+		{/each}
+	</section>
+{/each}
+{#if story.undated.length}
+	<section id="sans-date" class="period">
+		<h2>Sans date</h2>
+		{#each story.undated as t (t.entry.id)}
+			{@render thread(t)}
+		{/each}
+	</section>
 {/if}
 
 {#snippet thread(t)}
@@ -50,7 +45,22 @@
 {/snippet}
 
 <style>
-	section { scroll-margin-top: 96px; }
-	h2 { margin: 32px 0 0; color: #6b625a; font-size: 1.3rem; }
-	.hint { color: #8a8076; }
+	.period {
+		scroll-margin-top: 100px;
+		margin-top: 40px;
+	}
+	h2 {
+		display: flex;
+		align-items: center;
+		gap: 16px;
+		margin: 0;
+		color: var(--ink-soft);
+		font-size: 1.35rem;
+	}
+	h2::after {
+		content: '';
+		flex: 1;
+		height: 1px;
+		background: var(--line);
+	}
 </style>

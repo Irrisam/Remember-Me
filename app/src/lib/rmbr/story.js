@@ -1,4 +1,4 @@
-import { timeline } from './timeline.js';
+import { timeline, overrides } from './timeline.js';
 
 /**
  * Le recueil mis en récit, partagé par l'app et le viewer hors ligne :
@@ -16,13 +16,30 @@ export function story(entries, manifest) {
 	const { dated, undated } = timeline(entries, manifest.creatorId);
 	const visible = new Map([...dated, ...undated].map((e) => [e.id, e]));
 
+	// Souvenir modifié : les réponses à l'ancienne version suivent la nouvelle.
+	const { replaced } = overrides(entries, manifest.creatorId);
+	const successor = new Map();
+	for (const e of entries.values()) {
+		if (e.supersedes && e.type !== 'tombstone' && (replaced.has(e.supersedes) || !entries.has(e.supersedes))) {
+			successor.set(e.supersedes, e.id);
+		}
+	}
+	const latest = (id) => {
+		const seen = new Set();
+		while (successor.has(id) && !seen.has(id)) {
+			seen.add(id);
+			id = successor.get(id);
+		}
+		return id;
+	};
+
 	// Une réponse se range sous le souvenir d'origine de la chaîne, quelle que soit sa propre date.
 	const rootOf = (entry) => {
 		const seen = new Set();
 		let cur = entry;
-		while (cur.replyTo && visible.has(cur.replyTo) && !seen.has(cur.id)) {
+		while (cur.replyTo && visible.has(latest(cur.replyTo)) && !seen.has(cur.id)) {
 			seen.add(cur.id);
-			cur = visible.get(cur.replyTo);
+			cur = visible.get(latest(cur.replyTo));
 		}
 		return cur;
 	};
